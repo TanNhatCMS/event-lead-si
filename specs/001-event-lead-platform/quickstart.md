@@ -15,7 +15,7 @@ Tài liệu này mô tả kịch bản xác minh sau khi giai đoạn triển kh
 2. Khởi tạo biến cục bộ từ mẫu `.env.example`; không dùng service-role key trong biến `NEXT_PUBLIC_*`.
 3. Áp dụng database migrations và seed chỉ chứa dữ liệu tổng hợp.
 4. Chạy ứng dụng bằng `pnpm dev`.
-5. Khi các scripts được tạo, chạy `pnpm lint`, `pnpm typecheck`, `pnpm test` và `pnpm exec playwright test` theo hướng dẫn trong package scripts.
+5. Chạy `pnpm lint`, `pnpm typecheck` và `pnpm build` để kiểm tra mã ứng dụng trước khi thực hiện các kịch bản acceptance bên dưới.
 
 ## Kịch bản xác minh đầu-cuối
 

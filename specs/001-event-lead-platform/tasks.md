@@ -15,9 +15,9 @@
 **Mục đích**: Chuẩn bị môi trường để xây luồng chuyển danh thiếp thành hồ sơ chuẩn hóa; T001 là task khởi tạo không viết mã nguồn.
 
 - [ ] T001 [P] Khởi tạo môi trường development không viết mã nguồn: tạo dự án Supabase dev, xác nhận quyền truy cập và ghi các bước/định danh không nhạy cảm vào `docs/setup.md`.
-- [ ] T002 Khởi tạo ứng dụng Next.js 16 App Router với TypeScript, React 19 và cấu trúc `src/app/` theo `specs/001-event-lead-platform/plan.md`.
-- [ ] T003 Cài và cấu hình Tailwind CSS 4, shadcn/ui và các thành phần AI SDK Elements cần thiết trong `package.json`, `src/app/globals.css` và `components.json`.
-- [ ] T004 Tạo mẫu biến môi trường không chứa bí mật trong `.env.example` và mô tả cách cấu hình cục bộ trong `docs/setup.md`.
+- [X] T002 Khởi tạo ứng dụng Next.js 16 App Router với TypeScript, React 19 và cấu trúc `src/app/` theo `specs/001-event-lead-platform/plan.md`.
+- [X] T003 Cài và cấu hình Tailwind CSS 4, shadcn/ui và các thành phần AI SDK Elements cần thiết trong `package.json`, `src/app/globals.css` và `components.json`.
+- [X] T004 Tạo mẫu biến môi trường không chứa bí mật trong `.env.example` và mô tả cách cấu hình cục bộ trong `docs/setup.md`.
 
 ---
 
@@ -25,14 +25,14 @@
 
 **Mục đích**: Hoàn thiện các ranh giới dữ liệu, phiên đăng nhập, phân quyền và tích hợp nền trước khi làm câu chuyện người dùng.
 
-- [ ] T005 Tạo migration khởi đầu cho Organization, Membership, Event, Company, Contact và EventContact trong `supabase/migrations/` theo `specs/001-event-lead-platform/data-model.md`.
-- [ ] T006 Bật RLS và viết policy theo membership/tổ chức cho bảng nghiệp vụ trong `supabase/migrations/`.
-- [ ] T007 Tạo client Supabase SSR phía máy chủ, client trình duyệt giới hạn quyền và kiểm tra session trong `src/lib/supabase/`.
-- [ ] T008 Tạo tiện ích lấy organization context và kiểm tra vai trò ở server action/route handler trong `src/lib/auth/`.
-- [ ] T009 Tạo bucket private cùng policy truy cập theo organization path trong `supabase/migrations/`.
-- [ ] T010 Thiết lập xử lý lỗi có cấu trúc và nhật ký an toàn, không ghi ảnh, token hoặc nội dung ghi chú nhạy cảm trong `src/lib/observability/`.
-- [ ] T011 Tạo schema phiên bản hóa cho dữ liệu danh thiếp chuẩn hóa (tên, chức danh, doanh nghiệp, email, điện thoại, địa chỉ, ngôn ngữ), giữ giá trị gốc và trạng thái trường; tạo adapter `CardRecognitionProvider` trong `src/lib/ai/card-recognition.ts`.
-- [ ] T012 Tạo migration/versioning convention và seed dữ liệu tổng hợp cho môi trường development trong `supabase/migrations/` và `supabase/seed.sql`.
+- [X] T005 Tạo migration khởi đầu cho Organization, Membership, Event, Company, Contact và EventContact trong `supabase/migrations/` theo `specs/001-event-lead-platform/data-model.md`.
+- [X] T006 Bật RLS và viết policy theo membership/tổ chức cho bảng nghiệp vụ trong `supabase/migrations/`.
+- [X] T007 Tạo client Supabase SSR phía máy chủ, client trình duyệt giới hạn quyền và kiểm tra session trong `src/lib/supabase/`.
+- [X] T008 Tạo tiện ích lấy organization context và kiểm tra vai trò ở server action/route handler trong `src/lib/auth/`.
+- [X] T009 Tạo bucket private cùng policy truy cập theo organization path trong `supabase/migrations/`.
+- [X] T010 Thiết lập xử lý lỗi có cấu trúc và nhật ký an toàn, không ghi ảnh, token hoặc nội dung ghi chú nhạy cảm trong `src/lib/observability/`.
+- [X] T011 Tạo schema phiên bản hóa cho dữ liệu danh thiếp chuẩn hóa (tên, chức danh, doanh nghiệp, email, điện thoại, địa chỉ, ngôn ngữ), giữ giá trị gốc và trạng thái trường; tạo adapter `CardRecognitionProvider` trong `src/lib/ai/card-recognition.ts`.
+- [X] T012 Tạo migration/versioning convention và seed dữ liệu tổng hợp cho môi trường development trong `supabase/migrations/` và `supabase/seed.sql`.
 
 **Điểm kiểm tra**: Môi trường development đăng nhập được; user hai tổ chức không đọc/ghi chéo dữ liệu; bucket ảnh không công khai; không có credential trong client.
 
@@ -46,8 +46,8 @@
 
 - [ ] T013 [P] [US1] Tạo trang danh sách và form tạo/sửa sự kiện trong `src/features/events/` và `src/app/events/`.
 - [ ] T014 [P] [US1] Tạo trang danh sách/chi tiết liên hệ và bộ lọc theo tên, công ty, sự kiện, nhãn, người phụ trách trong `src/features/contacts/` và `src/app/contacts/`.
-- [ ] T015 [US1] Tạo migration cho CardImport, ContactFieldEvidence và MeetingNote theo trạng thái/quan hệ trong `supabase/migrations/`.
-- [ ] T016 [US1] Tạo endpoint tạo import, upload URL có hạn và xác minh loại/kích thước tệp trong `src/app/api/card-imports/route.ts`.
+- [X] T015 [US1] Tạo migration cho CardImport, ContactFieldEvidence và MeetingNote theo trạng thái/quan hệ trong `supabase/migrations/`.
+- [X] T016 [US1] Tạo endpoint tạo import, upload URL có hạn và xác minh loại/kích thước tệp trong `src/app/api/card-imports/route.ts`.
 - [ ] T017 [US1] Kết nối provider OCR/vision đã được phê duyệt; nhận dạng và chuẩn hóa tiếng Việt, Anh, Hàn, Nhật, Trung theo năng lực pilot; trả về giá trị gốc, giá trị chuẩn hóa, trạng thái trường và metadata nguồn trong `src/services/card-recognition/`.
 - [ ] T018 [US1] Tạo giao diện rà soát hồ sơ danh thiếp chuẩn hóa: đối chiếu giá trị gốc/đã chuẩn hóa, sửa hoặc từ chối trường, xem độ chắc chắn/ngôn ngữ trước khi xác nhận trong `src/features/card-import/review-card.tsx`.
 - [ ] T019 [US1] Tạo endpoint xác nhận/từ chối import, tạo Contact chỉ sau thao tác người dùng và áp dụng khóa idempotency trong `src/app/api/card-imports/[importId]/confirm/route.ts`.
@@ -63,7 +63,7 @@
 
 **Kiểm chứng độc lập**: Tạo bản nháp, sửa/lưu, duyệt và xác nhận trạng thái; không có email/tin nhắn nào tự gửi.
 
-- [ ] T023 [P] [US3] Tạo migration FollowUp với trạng thái `draft`, `approved`, `dismissed`, `manually_sent`, `expired` trong `supabase/migrations/`.
+- [X] T023 [P] [US3] Tạo migration FollowUp với trạng thái `draft`, `approved`, `dismissed`, `manually_sent`, `expired` trong `supabase/migrations/`.
 - [ ] T024 [US3] Tạo dịch vụ soạn email theo ngôn ngữ/ngữ cảnh bằng Vercel AI SDK; lưu prompt version và danh sách context ID trong `src/services/follow-ups/draft.ts`.
 - [ ] T025 [US3] Tạo endpoint tạo, sửa, duyệt và bỏ bản nháp theo `specs/001-event-lead-platform/contracts/mvp-api.md` trong `src/app/api/follow-ups/`.
 - [ ] T026 [US3] Tạo giao diện xem/sửa bản nháp và hiển thị trạng thái AI bằng AI SDK Elements trong `src/features/follow-ups/`.
@@ -78,7 +78,7 @@
 
 **Kiểm chứng độc lập**: Chọn liên hệ đã duyệt, xuất từng định dạng, đối chiếu trường và xem lỗi/partial nếu có.
 
-- [ ] T029 [P] [US5] Tạo migration ExportJob và đường dẫn kết quả private có thời hạn trong `supabase/migrations/`.
+- [X] T029 [P] [US5] Tạo migration ExportJob và đường dẫn kết quả private có thời hạn trong `supabase/migrations/`.
 - [ ] T030 [US5] Tạo bộ chuyển Contact đã xác nhận sang vCard và CSV, giữ encoding tiếng Việt trong `src/services/exports/`.
 - [ ] T031 [US5] Tạo endpoint tạo export, trạng thái, download URL có hạn và thống kê thành công/thất bại trong `src/app/api/exports/`.
 - [ ] T032 [US5] Tạo giao diện chọn liên hệ, định dạng và tải kết quả với thông báo partial/error trong `src/features/exports/`.

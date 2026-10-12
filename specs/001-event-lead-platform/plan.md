@@ -12,7 +12,7 @@ EventLead SI hướng tới chuyển danh thiếp thành hồ sơ đối tác ch
 
 **Ngôn ngữ/phiên bản**: TypeScript; Node.js 22 trở lên; React 19; Next.js 16 App Router.
 
-**Thư viện chính**: Next.js 16, Supabase JS và `@supabase/ssr`, Vercel AI SDK (`ai` và provider adapter được chọn sau), AI SDK Elements, shadcn/ui, Tailwind CSS 4. Phiên bản gói được chốt trong lockfile khi khởi tạo ứng dụng và đối chiếu tài liệu phiên bản hiện hành lúc triển khai.
+**Thư viện chính**: Next.js 16, Supabase JS và `@supabase/ssr`, Vercel AI SDK (`ai` và provider adapter được chọn sau), AI SDK Elements, shadcn/ui, Tailwind CSS 4; pnpm 10 quản lý package và lockfile. Phiên bản gói được chốt trong `pnpm-lock.yaml` và đối chiếu tài liệu phiên bản hiện hành lúc triển khai.
 
 **Lưu trữ**: Supabase PostgreSQL cho dữ liệu nghiệp vụ; Supabase Storage với bucket riêng cho ảnh danh thiếp và tệp cuộc gặp được phép lưu. Tất cả bảng được phơi bày qua Data API phải có RLS và policy theo tổ chức.
 

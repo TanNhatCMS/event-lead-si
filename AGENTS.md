@@ -8,7 +8,7 @@ Tính năng hiện hành nằm tại `specs/001-event-lead-platform/`: `spec.md`
 
 ## Lệnh build, kiểm thử và phát triển
 
-Chưa có lệnh build, runtime hoặc kiểm thử ứng dụng vì mã nguồn chưa được khởi tạo. Hiến chương quy định stack mặc định là Next.js 16 App Router, Supabase, Vercel AI SDK và AI SDK Elements. Các script lập kế hoạch có bản Python và PowerShell; ví dụ:
+Ứng dụng dùng pnpm. Chạy `pnpm dev`, `pnpm build`, `pnpm lint`; chưa tạo bộ kiểm thử tự động. Hiến chương quy định stack mặc định là Next.js 16 App Router, Supabase, Vercel AI SDK và AI SDK Elements. Các script lập kế hoạch có bản Python và PowerShell; ví dụ:
 
 - `python .specify/scripts/python/check_prerequisites.py --help` — xem điều kiện và tùy chọn workflow tính năng.
 - `python .specify/scripts/python/setup_plan.py --help` — xem tùy chọn khởi tạo kế hoạch.
