@@ -1,31 +1,33 @@
-# Repository Guidelines
+# Hướng dẫn làm việc trong repository
 
-## Project Structure & Module Organization
+## Cấu trúc dự án
 
-This repository currently contains product planning artifacts rather than application code. The active feature is under `specs/001-event-lead-platform/`: `spec.md` describes requirements, `plan.md` captures the implementation design, and `checklists/requirements.md` holds a review checklist. Feature work may add `research.md`, `data-model.md`, `quickstart.md`, `contracts/`, and `tasks.md` in that same feature directory. `.specify/` contains Spec Kit templates, workflow definitions, and helper scripts; `.agents/skills/` contains repository-specific agent workflows. Keep generated feature artifacts together and avoid placing product source or tests in these tooling directories.
+Repository hiện chứa bộ khung lập kế hoạch cho **EventLead SI**, với mục tiêu chính là chuyển danh thiếp thành hồ sơ đối tác chuẩn hóa, có thể tái sử dụng. Luồng sản phẩm gồm nhận dạng danh thiếp đa ngôn ngữ, chuẩn hóa trường, người dùng rà soát, lưu bối cảnh cuộc gặp và (ở giai đoạn sau) tra cứu nguồn công khai có bằng chứng. MVP ưu tiên thu thập, dữ liệu liên hệ chuẩn hóa và theo dõi có người duyệt; CRM, sourcing và trí tuệ quan hệ thuộc giai đoạn sau.
 
-## Build, Test, and Development Commands
+Tính năng hiện hành nằm tại `specs/001-event-lead-platform/`: `spec.md` mô tả yêu cầu, `plan.md` ghi thiết kế triển khai, `checklists/requirements.md` là danh sách rà soát. Các tài liệu liên quan như `research.md`, `data-model.md`, `quickstart.md`, `contracts/` và `tasks.md` cũng nằm trong thư mục này. `.specify/` chứa mẫu, quy trình và script Spec Kit; `.agents/skills/` chứa hướng dẫn workflow của repository. Giữ tài liệu tính năng cùng một chỗ, không đặt mã nguồn hoặc kiểm thử sản phẩm trong thư mục công cụ.
 
-No application build, runtime, or test command is configured yet because the implementation stack has not been scaffolded. The available helper scripts are Python and PowerShell equivalents. For example:
+## Lệnh build, kiểm thử và phát triển
 
-- `python .specify/scripts/python/check_prerequisites.py --help` — inspect feature workflow prerequisites/options.
-- `python .specify/scripts/python/setup_plan.py --help` — inspect plan setup options.
-- `python .specify/scripts/python/setup_tasks.py --help` — inspect task setup options.
+Chưa có lệnh build, runtime hoặc kiểm thử ứng dụng vì mã nguồn chưa được khởi tạo. Hiến chương quy định stack mặc định là Next.js 16 App Router, Supabase, Vercel AI SDK và AI SDK Elements. Các script lập kế hoạch có bản Python và PowerShell; ví dụ:
 
-Use `pwsh .specify/scripts/powershell/<script>.ps1` for the PowerShell versions. Check each script's help before running it; workflow scripts may create or update artifacts.
+- `python .specify/scripts/python/check_prerequisites.py --help` — xem điều kiện và tùy chọn workflow tính năng.
+- `python .specify/scripts/python/setup_plan.py --help` — xem tùy chọn khởi tạo kế hoạch.
+- `python .specify/scripts/python/setup_tasks.py --help` — xem tùy chọn khởi tạo danh sách task.
 
-## Documentation Style
+Dùng `pwsh .specify/scripts/powershell/<script>.ps1` cho bản PowerShell. Xem trợ giúp từng script trước khi chạy vì workflow có thể tạo hoặc cập nhật tài liệu.
 
-Write planning artifacts in Markdown with descriptive headings, short actionable statements, and relative paths from the repository root. Feature directories use a three-digit sequence and kebab-case name, such as `001-event-lead-platform`. Keep requirements and design aligned with `.specify/memory/constitution.md`; clearly distinguish verified facts, user-provided data, and uncertain or AI-inferred claims. Document consequential actions as requiring explicit human approval.
+## Quy ước tài liệu
 
-## Testing Guidelines
+Viết tài liệu Markdown bằng tiếng Việt, tiêu đề mô tả rõ và câu ngắn có thể thực hiện. Dùng đường dẫn tương đối từ repository. Thư mục tính năng có số thứ tự ba chữ số và tên kebab-case, ví dụ `001-event-lead-platform`. Luôn phân biệt mục tiêu tổng thể (hồ sơ đối tác chuẩn hóa từ danh thiếp) với phạm vi MVP đã chốt (thu thập/chuẩn hóa/duyệt, bối cảnh gặp và theo dõi có người duyệt); tra cứu công khai sâu, CRM, trí tuệ quan hệ và sourcing triển khai theo giai đoạn. Mọi tài liệu phải nhất quán với `.specify/memory/constitution.md`. Phân biệt dữ kiện đã xác minh, dữ liệu do người dùng cung cấp và suy luận/chưa chắc chắn; ghi nguồn và thời điểm truy xuất khi có. Yêu cầu người dùng duyệt rõ ràng trước nội dung gửi ra ngoài, cam kết thương mại, quyết định rủi ro và ghi đè CRM.
 
-There is no test framework or coverage threshold in the current scaffold. For documentation changes, check that links and paths resolve, requirements remain consistent across the spec, plan, and checklist, and examples match the actual scripts. When application code is introduced, add its test commands and naming conventions here alongside the chosen framework.
+## Quy ước kiểm tra
 
-## Commit & Pull Request Guidelines
+Hiện chưa có framework kiểm thử hoặc ngưỡng độ bao phủ. Với thay đổi tài liệu, kiểm tra liên kết/đường dẫn, sự nhất quán giữa spec, plan, tasks và checklist, và tính chính xác của ví dụ script. Khi bổ sung mã ứng dụng, ghi lệnh kiểm thử cùng quy ước đặt tên sau khi framework được chọn.
 
-Git metadata and commit history are not available in this checkout, so no existing commit convention could be confirmed. Use concise imperative commit subjects (for example, `docs: clarify contact review flow`) until maintainers establish a repository-specific convention. Pull requests should summarize the change, identify affected feature artifacts, link related work when available, and note validation performed. Include screenshots only when a UI is part of the change.
+## Commit và pull request
 
-## Security & Configuration
+Lịch sử ban đầu chưa xác định quy ước commit của nhóm. Dùng subject ngắn, dạng mệnh lệnh, ví dụ `docs: clarify card normalization flow`, cho đến khi maintainer quy định khác. Pull request cần tóm tắt thay đổi, liệt kê tài liệu tính năng bị ảnh hưởng, liên kết công việc liên quan nếu có và ghi rõ bước xác minh đã thực hiện. Chỉ đính kèm ảnh khi thay đổi có giao diện.
 
-Never commit secrets, privileged credentials, or real contact/event data. Any future database changes should be versioned and reviewed, and access boundaries must follow the project constitution, including organization-level authorization and server-only privileged credentials.
+## Bảo mật và cấu hình
+
+Không commit bí mật, credential đặc quyền hoặc dữ liệu liên hệ/sự kiện thật. Tôn trọng điều khoản nguồn và quyền truy cập được cấp khi tra cứu doanh nghiệp hoặc tích hợp kênh liên lạc. Version hóa và rà soát thay đổi database; thực thi ranh giới truy cập theo tổ chức và chỉ giữ credential Supabase đặc quyền phía máy chủ. Coi OCR, làm giàu dữ liệu, rủi ro, sourcing, giá và đàm phán là hỗ trợ cần người xem xét, có bằng chứng và độ không chắc chắn hiển thị; không trình bày chúng như kết luận đã xác minh.

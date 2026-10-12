@@ -1,4 +1,4 @@
-# Đặc tả tính năng: Nền tảng trí tuệ đối tác EventLead SI
+# Đặc tả tính năng: Chuyển hóa danh thiếp thành dữ liệu đối tác chuẩn hóa
 
 **Nhánh tính năng**: `001-event-lead-platform`
 
@@ -7,6 +7,14 @@
 **Trạng thái**: Bản nháp
 
 **Đầu vào**: Đặc tả dự án EventLead SI do người dùng cung cấp (phiên bản 1.0, ngày 2026-10-12), cùng các quyết định tiếp theo về tên và công nghệ.
+
+## Mục tiêu sản phẩm
+
+EventLead SI chuyển danh thiếp thu thập tại hội thảo, triển lãm và sự kiện kết nối thành hồ sơ đối tác có cấu trúc, chuẩn hóa và có thể tái sử dụng. Hệ thống nhận dạng thông tin trên danh thiếp đa ngôn ngữ, cho người dùng rà soát dữ liệu, gắn bối cảnh cuộc gặp, tra cứu bổ sung từ nguồn công khai phù hợp và tổng hợp hồ sơ có nguồn gốc cùng trạng thái xác minh rõ ràng.
+
+Giá trị cốt lõi là giảm nhập liệu thủ công và tránh dữ liệu liên hệ rời rạc, sai định dạng hoặc không có căn cứ. Một sự kiện có thể thu thập hàng chục đến hàng trăm danh thiếp; hệ thống cần hỗ trợ nhập theo lô và xử lý từng thẻ độc lập. Hồ sơ chuẩn hóa gồm thông tin cá nhân/doanh nghiệp, trường dữ liệu đã chuẩn hóa, bằng chứng và nguồn, thời điểm cập nhật, dữ liệu còn thiếu/chưa chắc chắn và liên kết với sự kiện. Việt Nam là thị trường ưu tiên ban đầu; OCR mục tiêu gồm tiếng Việt, Anh, Hàn, Nhật và Trung, tùy năng lực đã được kiểm chứng.
+
+Quyết định phạm vi đã xác nhận: MVP ưu tiên thu thập danh thiếp, chuẩn hóa dữ liệu đầu vào, lưu bối cảnh cuộc gặp và theo dõi có người duyệt. Tra cứu công khai sâu, CRM, sourcing và trí tuệ quan hệ được phát triển theo giai đoạn sau. Đây là lộ trình triển khai; mục tiêu sản phẩm tổng thể vẫn là tạo hồ sơ đối tác chuẩn hóa, có thể tái sử dụng.
 
 ## Làm rõ
 
@@ -17,11 +25,11 @@
 
 ## Kịch bản người dùng và kiểm thử *(bắt buộc)*
 
-### Câu chuyện 1 — Thu thập và quản lý liên hệ tại sự kiện (Ưu tiên: P1)
+### Câu chuyện 1 — Chuyển danh thiếp thành hồ sơ liên hệ chuẩn hóa (Ưu tiên: P1)
 
-Đại diện bán hàng tại sự kiện chụp một hoặc nhiều danh thiếp, ghi chú nội dung trao đổi và xem lại thông tin liên hệ được trích xuất. Họ sửa các trường chưa chính xác và gắn từng liên hệ với sự kiện cùng bối cảnh cuộc gặp.
+Đại diện bán hàng tại sự kiện chụp một hoặc nhiều danh thiếp. Hệ thống nhận dạng, làm sạch và ánh xạ thông tin vào cấu trúc liên hệ/doanh nghiệp thống nhất; người dùng xem, sửa, xác nhận độ chính xác và gắn từng hồ sơ với sự kiện cùng bối cảnh cuộc gặp. Hồ sơ phải giữ được giá trị gốc/nguồn và trạng thái xác minh để có thể tái sử dụng.
 
-**Lý do ưu tiên**: Thu thập nhanh và đáng tin cậy là nền tảng của sản phẩm, đồng thời hữu ích ngay cả khi chưa có bổ sung dữ liệu hoặc tích hợp bên ngoài.
+**Lý do ưu tiên**: Đây là bước đầu tiên biến danh thiếp thành dữ liệu đối tác chuẩn hóa, giảm nhập tay và tạo nền cho việc tra cứu, chia sẻ, tái sử dụng về sau.
 
 **Kiểm thử độc lập**: Người dùng nhập ảnh danh thiếp, sửa trường trích xuất, gắn với một sự kiện và tìm lại hồ sơ cùng ghi chú.
 
@@ -116,7 +124,7 @@ Thành viên nhóm xem một kết nối chung, đường dẫn quan hệ hoặc
 
 ### Phân kỳ phát hành
 
-- **Giai đoạn 1 — MVP thu thập và theo dõi**: Tạo sự kiện và liên hệ, nhận dạng và sửa thông tin danh thiếp, lưu bối cảnh cuộc gặp, xem xét trùng lặp, hồ sơ liên hệ/doanh nghiệp cơ bản, theo dõi giai đoạn quan hệ, lời nhắc, bản nháp tiếp nối có người duyệt và xuất vCard/bảng tính.
+- **Giai đoạn 1 — MVP chuyển danh thiếp thành hồ sơ chuẩn hóa**: Tạo sự kiện và liên hệ; nhận dạng đa ngôn ngữ, làm sạch/chuẩn hóa và cho sửa thông tin danh thiếp; lưu nguồn và trạng thái xác nhận; lưu bối cảnh cuộc gặp, xem xét trùng lặp; theo dõi giai đoạn quan hệ, lời nhắc, bản nháp tiếp nối có người duyệt và xuất vCard/bảng tính.
 - **Giai đoạn 2 — Bổ sung thông tin và CRM**: Bổ sung doanh nghiệp từ nguồn công khai, đánh giá phù hợp/rủi ro dựa trên bằng chứng, bảng điều khiển sự kiện, lịch và đồng bộ CRM có phê duyệt.
 - **Giai đoạn 3 — Trí tuệ quan hệ và sourcing**: Đồ thị kết nối và gợi ý giới thiệu, tìm kiếm và so sánh nhà cung cấp, danh sách ngắn, chuẩn bị đàm phán và hộp thư hợp nhất nếu nền tảng hỗ trợ.
 - Bản phát hành đầu tiên PHẢI cung cấp Giai đoạn 1 như một sản phẩm độc lập có thể sử dụng. Các tính năng Giai đoạn 2 và 3 KHÔNG ĐƯỢC là điều kiện chặn nghiệm thu MVP Giai đoạn 1.
@@ -130,7 +138,7 @@ Thành viên nhóm xem một kết nối chung, đường dẫn quan hệ hoặc
 - **FR-005**: Hệ thống PHẢI hỗ trợ nhập liên hệ theo lô và giữ từng danh thiếp ở trạng thái riêng để người dùng xem xét.
 - **FR-006**: Hệ thống PHẢI cho phép gắn ghi chú, nhu cầu, nhãn, bối cảnh cuộc gặp và hành động tiếp theo với liên hệ và sự kiện.
 - **FR-007**: Hệ thống PHẢI nhận diện liên hệ và doanh nghiệp có khả năng trùng trước khi tạo hoặc đồng bộ hồ sơ mới, đồng thời cho phép người dùng xử lý kết quả khớp.
-- **FR-008**: Hệ thống PHẢI quản lý hồ sơ liên hệ và doanh nghiệp với các thông tin định danh, liên lạc, hoạt động, sự kiện và quan hệ có cấu trúc.
+- **FR-008**: Hệ thống PHẢI quản lý hồ sơ liên hệ và doanh nghiệp theo schema chuẩn hóa có phiên bản, gồm thông tin định danh, liên lạc, hoạt động, sự kiện và quan hệ; hồ sơ phải sẵn sàng để tìm kiếm, chia sẻ và xuất/tái sử dụng. Hồ sơ doanh nghiệp hỗ trợ lĩnh vực, thị trường, quy mô, năm thành lập, sản phẩm, website và mã đăng ký/thuế khi nguồn cho phép xác minh.
 - **FR-009**: Hệ thống PHẢI phân biệt thông tin do người dùng cung cấp, lấy từ bên ngoài, đã xác minh, suy luận, chưa chắc chắn hoặc không tìm thấy.
 - **FR-010**: Với thông tin bên ngoài có sẵn, hệ thống PHẢI hiển thị nguồn và thời điểm truy xuất hoặc xác minh nếu có.
 - **FR-011**: Hệ thống PHẢI trình bày đánh giá phù hợp và rủi ro kèm tiêu chí, bằng chứng hỗ trợ và khoảng trống bằng chứng quan trọng.
@@ -148,7 +156,7 @@ Thành viên nhóm xem một kết nối chung, đường dẫn quan hệ hoặc
 - **FR-023**: Hệ thống PHẢI kiểm soát quyền truy cập theo tổ chức và vai trò đối với liên hệ, sự kiện, ghi chú, bản ghi âm và dữ liệu quan hệ doanh nghiệp.
 - **FR-024**: Hệ thống PHẢI cho phép quản trị viên tổ chức cấu hình chính sách lưu giữ và xóa dữ liệu liên hệ, cuộc gặp áp dụng cho tổ chức.
 - **FR-025**: Hệ thống PHẢI nêu rõ tích hợp hoặc phạm vi nguồn công khai nào không khả dụng và KHÔNG ĐƯỢC hàm ý rằng mọi nền tảng hoặc thị trường đều được hỗ trợ.
-- **FR-026**: Hệ thống PHẢI hỗ trợ nhận dạng liên hệ đa ngôn ngữ theo cấu hình và cho người dùng biết các ngôn ngữ hiện được hỗ trợ.
+- **FR-026**: Hệ thống PHẢI hỗ trợ nhận dạng và chuẩn hóa danh thiếp tiếng Việt, tiếng Anh, tiếng Hàn, tiếng Nhật và tiếng Trung theo năng lực đã kiểm chứng; giao diện PHẢI nêu rõ ngôn ngữ được hỗ trợ và trường nào chưa chắc chắn.
 - **FR-027**: Hệ thống PHẢI thông báo kết quả nhập và đồng bộ bị lỗi, một phần hoặc có xung đột.
 
 ### Thực thể chính *(nếu có dữ liệu)*
@@ -168,13 +176,14 @@ Thành viên nhóm xem một kết nối chung, đường dẫn quan hệ hoặc
 ### Kết quả đo lường được
 
 - **SC-001 [Giai đoạn 1]**: Trong đánh giá khả năng sử dụng, ít nhất 90% người tham gia có thể biến một danh thiếp thành liên hệ đã duyệt và gắn với sự kiện trong dưới 2 phút.
-- **SC-002 [Giai đoạn 1]**: Trên bộ dữ liệu danh thiếp đại diện đã được gán nhãn bởi con người, ít nhất 90% trường tên, công ty, email và điện thoại đúng trước khi người dùng sửa; giá trị chưa chắc chắn được nhận diện rõ.
+- **SC-002 [Giai đoạn 1]**: Trên bộ dữ liệu danh thiếp đại diện đã được gán nhãn bởi con người, với từng ngôn ngữ được công bố hỗ trợ, ít nhất 90% trường tên, công ty, email và điện thoại được trích xuất đúng trước khi người dùng sửa; giá trị chưa chắc chắn được nhận diện rõ và dữ liệu được ánh xạ vào schema chuẩn hóa.
 - **SC-003 [Giai đoạn 1]**: Ít nhất 95% bản ghi trùng được cài sẵn trong bộ đánh giá được cảnh báo trước khi đồng bộ; không tự động gộp chỉ dựa trên tên.
 - **SC-004 [Giai đoạn 2]**: Với hồ sơ bổ sung thông tin được lấy mẫu, 100% khẳng định bên ngoài hiển thị kèm nguồn và thời điểm truy xuất nếu có, hoặc được đánh dấu rõ là thiếu thông tin đó.
 - **SC-005 [Giai đoạn 1]**: 100% tin nhắn theo dõi và hành động thương mại trong đánh giá nghiệm thu phải có bước người dùng phê duyệt rõ ràng trước khi thực hiện.
 - **SC-006 [Giai đoạn 1]**: Ít nhất 90% người tham gia đánh giá tác vụ có thể tìm một liên hệ cùng bối cảnh sự kiện trong 30 giây bằng chức năng tìm kiếm hoặc bộ lọc.
 - **SC-007 [Giai đoạn 3]**: Ít nhất 90% người tham gia đánh giá sourcing có thể so sánh ba ứng viên và xác định khoảng trống bằng chứng của từng ứng viên trong 10 phút.
 - **SC-008 [Giai đoạn 1]**: Mọi lần xuất dữ liệu trong đánh giá đều báo hoàn tất, thất bại, một phần hoặc có xung đột để người dùng đối soát toàn bộ bản ghi đã chọn.
+- **SC-009 [Giai đoạn 1]**: 100% hồ sơ được xác nhận từ danh thiếp có phiên bản schema, giá trị trường chuẩn hóa hoặc trạng thái thiếu/chưa chắc chắn, và nguồn gốc trường để người dùng đối chiếu.
 
 ## Giả định
 
@@ -182,7 +191,7 @@ Thành viên nhóm xem một kết nối chung, đường dẫn quan hệ hoặc
 - Người dùng ban đầu gồm nhóm bán hàng B2B, tiếp thị sự kiện, lãnh đạo doanh nghiệp và nhóm sourcing trong một tổ chức.
 - Việt Nam là thị trường ưu tiên cho giai đoạn đầu; nguồn dữ liệu công khai và quyền sử dụng phù hợp tại Việt Nam phải được xác nhận trước khi triển khai tính năng bổ sung dữ liệu ở Giai đoạn 2.
 - Mục tiêu nhập ban đầu là một danh thiếp hoặc lô khoảng 5–10 danh thiếp, tùy giới hạn thiết bị và dịch vụ.
-- Tiếng Việt và tiếng Anh là ngôn ngữ giao diện ban đầu; ngôn ngữ nhận dạng được cấu hình rõ ràng và có thể gồm tiếng Hàn, Nhật, Trung như trong đặc tả dự án.
+- Tiếng Việt và tiếng Anh là ngôn ngữ giao diện ban đầu; OCR mục tiêu gồm tiếng Việt, tiếng Anh, tiếng Hàn, tiếng Nhật và tiếng Trung, nhưng chỉ công bố khả năng thực tế sau khi đánh giá trên bộ dữ liệu được phép sử dụng.
 - Quyền truy cập nguồn bên ngoài và tích hợp trực tiếp với mạng xã hội/tin nhắn phụ thuộc quốc gia, quyền tài khoản, API và điều khoản nền tảng. Kênh chưa hỗ trợ có thể dùng liên kết hồ sơ đã xác minh hoặc quy trình do người dùng thực hiện.
 - Người dùng cung cấp dữ liệu liên hệ và bản ghi cuộc gặp theo cơ sở pháp lý phù hợp; mỗi tổ chức tự xác định chính sách lưu giữ và xóa dữ liệu.
 - Các ngưỡng thành công bằng số là mục tiêu nghiệm thu ban đầu, cần được xác nhận với người dùng và bộ dữ liệu đại diện trước khi cam kết phát hành.

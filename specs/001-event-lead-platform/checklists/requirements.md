@@ -1,4 +1,4 @@
-# Danh sách kiểm tra chất lượng đặc tả: Nền tảng trí tuệ đối tác EventLead SI
+# Danh sách kiểm tra chất lượng đặc tả: Chuyển hóa danh thiếp EventLead SI
 
 **Mục đích**: Kiểm tra tính đầy đủ và chất lượng của đặc tả trước khi lập kế hoạch
 **Ngày tạo**: 2026-10-12
@@ -32,5 +32,6 @@
 ## Ghi chú
 
 - Đã rà soát theo tiêu chí chất lượng đặc tả. Stack được duyệt ghi trong hiến chương và sẽ được cụ thể hóa trong kế hoạch triển khai.
-- MVP tập trung thu thập liên hệ và theo dõi sau sự kiện; làm giàu dữ liệu/CRM và sourcing thuộc giai đoạn sau.
+- Mục tiêu tổng thể là chuyển danh thiếp thành hồ sơ đối tác chuẩn hóa, có thể tái sử dụng; MVP ưu tiên nhập/chuẩn hóa/duyệt và theo dõi, tra cứu công khai sâu cùng CRM và sourcing theo giai đoạn sau.
+- Đặc tả yêu cầu OCR hướng tới tiếng Việt, Anh, Hàn, Nhật và Trung; năng lực thực tế phải được kiểm chứng trước khi công bố.
 - Thị trường ra mắt đầu tiên và nguồn dữ liệu công khai được phép dùng sẽ được chốt trong kế hoạch triển khai; đặc tả không giả định mọi thị trường đều có dữ liệu.
