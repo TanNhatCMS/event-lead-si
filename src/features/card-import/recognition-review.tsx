@@ -16,6 +16,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { RecognizedCard } from "@/lib/ai/card-recognition";
+import { EnrichmentPanel } from "./enrichment-panel";
 
 const FIELD_ORDER = [
   "fullName",
@@ -196,6 +197,8 @@ export function RecognitionReview({
           trước khi xác nhận.
         </p>
       )}
+
+      <EnrichmentPanel recognized={recognized} onApply={handleChange} />
 
       {error && (
         <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
