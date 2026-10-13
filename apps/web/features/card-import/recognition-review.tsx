@@ -20,6 +20,7 @@ import type { RecognizedCard } from "~/lib/ai/card-recognition";
 
 // Lưu ý: tsconfig map `~/*` -> `./app/*` nên `~/features/...` không resolve;
 // EnrichmentPanel nằm cùng thư mục features/card-import -> import tương đối.
+import { DuplicateWarning } from "./duplicate-warning";
 import { EnrichmentPanel } from "./enrichment-panel";
 import type { EnrichableField } from "~/lib/ai/enrichment/types";
 
@@ -210,6 +211,12 @@ export function RecognitionReview({
           Đang dùng provider mẫu (mock) — kết quả là dữ liệu demo, provider OCR thật chưa được chọn.
         </p>
       )}
+
+      <DuplicateWarning
+        fullName={values.fullName}
+        email={values.email}
+        phone={values.phone}
+      />
 
       {uncertainCount > 0 && (
         <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
