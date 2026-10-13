@@ -1,14 +1,27 @@
 import { PageBody, PageHeader } from '@kit/ui/page';
 
-import { DashboardDemo } from '~/home/_components/dashboard-demo';
+import { requireUserInServerComponent } from '~/lib/server/require-user-in-server-component';
 
-export default function HomePage() {
+// Lưu ý: tsconfig map `~/*` -> `./app/*` nên `~/features/...` không resolve;
+// features nằm ở apps/web/features -> dùng import tương đối.
+import { DashboardOverview } from '../../features/dashboard/dashboard-overview';
+
+/**
+ * Trang chủ EventLead: tổng quan số liệu thật
+ * (thay demo dashboard của kit).
+ */
+export default async function HomePage() {
+  await requireUserInServerComponent();
+
   return (
     <>
-      <PageHeader description={'Your SaaS at a glance'} />
+      <PageHeader
+        title="Tổng quan"
+        description="Số liệu danh bạ và hoạt động quét danh thiếp của bạn."
+      />
 
       <PageBody>
-        <DashboardDemo />
+        <DashboardOverview />
       </PageBody>
     </>
   );
