@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, RotateCcw } from "lucide-react";
+import { Check, CheckCircle2, Copy, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -74,6 +74,11 @@ export function CardScanFlow() {
   const [provider, setProvider] = useState<string>("mock");
   const [importId, setImportId] = useState<string | null>(null);
   const [confirmedContactId, setConfirmedContactId] = useState<string | null>(null);
+  const [confirmedCompany, setConfirmedCompany] = useState<{
+    name: string;
+    shareUrl: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -92,6 +97,8 @@ export function CardScanFlow() {
     setProvider("mock");
     setImportId(null);
     setConfirmedContactId(null);
+    setConfirmedCompany(null);
+    setCopied(false);
   }, [imageUrl]);
 
   const handleImageSelected = useCallback((file: File) => {
@@ -173,10 +180,47 @@ export function CardScanFlow() {
     });
   }, [imageFile, runRecognition]);
 
-  const handleConfirmed = useCallback((response: { contact_id: string }) => {
-    setConfirmedContactId(response.contact_id);
-    setStep("done");
-  }, []);
+  const handleConfirmed = useCallback(
+    (response: { contact_id: string; company_name?: string | null; share_url?: string | null }) => {
+      setConfirmedContactId(response.contact_id);
+      setConfirmedCompany(
+        response.company_name && response.share_url
+          ? { name: response.company_name, shareUrl: response.share_url }
+          : null,
+      );
+      setCopied(false);
+      setStep("done");
+    },
+    [],
+  );
+
+  const handleCopyShareLink = useCallback(async () => {
+    const url = confirmedCompany?.shareUrl;
+    if (!url) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        throw new Error("no clipboard");
+      }
+      setCopied(true);
+    } catch {
+      // Fallback cho trình duyệt không có Clipboard API.
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        setCopied(true);
+      } catch {
+        // Người dùng tự copy từ ô hiển thị.
+      }
+    }
+  }, [confirmedCompany]);
 
   return (
     <div className="space-y-5">
@@ -230,6 +274,30 @@ export function CardScanFlow() {
             Hồ sơ đã được tạo từ các giá trị bạn xác nhận
             {confirmedContactId ? ` (mã hồ sơ: ${confirmedContactId}).` : "."}
           </p>
+          {confirmedCompany && (
+            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-slate-50 p-4 text-left">
+              <p className="text-sm font-medium text-slate-900">
+                Công ty đã lưu: {confirmedCompany.name}
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  readOnly
+                  value={confirmedCompany.shareUrl}
+                  onFocus={(e) => e.target.select()}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600"
+                  aria-label="Link chia sẻ hồ sơ công ty"
+                />
+                <Button variant="outline" size="sm" onClick={handleCopyShareLink}>
+                  {copied ? (
+                    <Check className="h-4 w-4 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                  {copied ? "Đã sao chép" : "Sao chép link chia sẻ"}
+                </Button>
+              </div>
+            </div>
+          )}
           <Button variant="outline" onClick={reset}>
             <RotateCcw className="h-4 w-4" /> Quét danh thiếp khác
           </Button>

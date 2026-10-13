@@ -115,11 +115,80 @@ export async function POST(request: Request) {
 
   const normalized = (value: string | undefined) => (value?.trim() ? value.trim() : null);
 
-  // 1) Tạo contact từ các giá trị người dùng đã xác nhận.
+  // 1) Lưu / liên kết công ty (nếu có tên công ty trong trường đã xác nhận).
+  let companyId: string | null = null;
+  let companyShareToken: string | null = null;
+  let companyDisplayName: string | null = null;
+  const companyName = normalized(input.fields.companyName);
+  if (companyName) {
+    const lookup = companyName.toLowerCase();
+    const escaped = companyName.replace(/[%_\\]/g, (m) => `\\${m}`);
+    const { data: candidates, error: lookupError } = await context.supabase
+      .from("companies")
+      .select("id, display_name, website, share_token")
+      .eq("organization_id", organizationId)
+      .ilike("display_name", escaped)
+      .limit(10);
+
+    if (lookupError) {
+      return NextResponse.json(
+        { code: "company_lookup_failed", message: "Chưa kiểm tra được công ty đã có.", request_id: requestId },
+        { status: 500 },
+      );
+    }
+
+    const existing = (candidates ?? []).find(
+      (row) => row.display_name.trim().toLowerCase() === lookup,
+    );
+
+    if (existing) {
+      companyId = existing.id;
+      companyShareToken = existing.share_token;
+      companyDisplayName = existing.display_name;
+      const website = normalized(input.fields.website);
+      if (!existing.website?.trim() && website) {
+        const { error: websiteError } = await context.supabase
+          .from("companies")
+          .update({ website })
+          .eq("id", existing.id)
+          .eq("organization_id", organizationId);
+        if (websiteError) {
+          return NextResponse.json(
+            { code: "company_update_failed", message: "Chưa cập nhật được website công ty.", request_id: requestId },
+            { status: 500 },
+          );
+        }
+      }
+    } else {
+      const { data: created, error: createError } = await context.supabase
+        .from("companies")
+        .insert({
+          organization_id: organizationId,
+          display_name: companyName,
+          website: normalized(input.fields.website),
+          profile_state: "user_provided",
+        })
+        .select("id, display_name, share_token")
+        .single();
+
+      if (createError || !created) {
+        return NextResponse.json(
+          { code: "company_create_failed", message: "Chưa lưu được công ty.", request_id: requestId },
+          { status: 500 },
+        );
+      }
+      companyId = created.id;
+      companyShareToken = created.share_token;
+      companyDisplayName = created.display_name;
+    }
+  }
+
+  // 2) Tạo contact từ các giá trị người dùng đã xác nhận.
   const { data: contact, error: contactError } = await context.supabase
     .from("contacts")
     .insert({
       organization_id: organizationId,
+      company_id: companyId,
       full_name: input.fields.fullName.trim(),
       job_title: normalized(input.fields.jobTitle),
       email: normalized(input.fields.email),
@@ -140,7 +209,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // 2) Ghi evidence từng trường: giá trị máy đọc thô + giá trị đã xác nhận.
+  // 3) Ghi evidence từng trường: giá trị máy đọc thô + giá trị đã xác nhận.
   const reviewedAt = new Date().toISOString();
   const evidenceRows = fieldKeys
     .map((key) => {
@@ -179,7 +248,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // 3) Lưu ghi chú cuộc gặp (tùy chọn) vào meeting_notes.
+  // 4) Lưu ghi chú cuộc gặp (tùy chọn) vào meeting_notes.
   const noteBody = [input.eventName, input.notes].filter(Boolean).join("\n\n");
   if (noteBody) {
     const { error: noteError } = await context.supabase.from("meeting_notes").insert({
@@ -197,7 +266,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // 4) Đánh dấu card_import đã xác nhận, lưu snapshot kết quả.
+  // 5) Đánh dấu card_import đã xác nhận, lưu snapshot kết quả.
   const { error: confirmError } = await context.supabase
     .from("card_imports")
     .update({
@@ -234,6 +303,12 @@ export async function POST(request: Request) {
       import_id: input.importId,
       contact_id: contact.id,
       provider: input.provider,
+      company_id: companyId,
+      company_name: companyDisplayName,
+      share_token: companyShareToken,
+      share_url: companyShareToken
+        ? `${new URL(request.url).origin}/chia-se/${companyShareToken}`
+        : null,
       request_id: requestId,
     },
     { status: 201 },

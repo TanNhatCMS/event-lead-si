@@ -85,7 +85,11 @@ interface RecognitionReviewProps {
   importId: string;
   provider: string;
   recognized: RecognizedCard;
-  onConfirmed: (response: { contact_id: string }) => void;
+  onConfirmed: (response: {
+    contact_id: string;
+    company_name?: string | null;
+    share_url?: string | null;
+  }) => void;
   onRescan: () => void;
 }
 
@@ -157,12 +161,16 @@ export function RecognitionReview({
         }),
       });
       const body = (await res.json().catch(() => null)) as
-        | { contact_id?: string; message?: string }
+        | { contact_id?: string; company_name?: string | null; share_url?: string | null; message?: string }
         | null;
       if (!res.ok || !body?.contact_id) {
         throw new Error(body?.message ?? `Xác nhận thất bại (mã ${res.status}).`);
       }
-      onConfirmed({ contact_id: body.contact_id });
+      onConfirmed({
+        contact_id: body.contact_id,
+        company_name: body.company_name ?? null,
+        share_url: body.share_url ?? null,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.");
     } finally {
