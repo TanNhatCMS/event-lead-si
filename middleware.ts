@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Route cần đăng nhập. /login, /dang-ky và /auth/callback luôn công khai.
-const PROTECTED_PREFIXES = ["/card-imports", "/thanh-vien", "/thiet-lap"];
+const PROTECTED_PREFIXES = ["/card-imports", "/thanh-vien", "/thiet-lap", "/cai-dat"];
 
 function isProtected(pathname: string) {
   return PROTECTED_PREFIXES.some(

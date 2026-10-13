@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { getOrganizationContext } from "@/lib/auth/organization";
-import {
-  isCardRecognitionEnabled,
-  recognizedCardSchema,
-} from "@/lib/ai/card-recognition";
+import { recognizedCardSchema } from "@/lib/ai/card-recognition";
+import { resolveCardRecognitionConfig } from "@/lib/ai/model-config";
 import { getCardRecognitionProvider } from "@/lib/ai/recognition-providers";
 
 const allowedTypes = new Set([
@@ -42,11 +40,19 @@ export async function POST(request: Request) {
   if (!context.user) return unauthorized(requestId);
   if (!context.supabase || !context.membership) return unauthorized(requestId, true);
 
-  if (!isCardRecognitionEnabled()) {
+  const organizationId = context.membership.organization_id as string;
+  // Ưu tiên cấu hình DB của tổ chức (trang /cai-dat/ai-models),
+  // fallback sang biến môi trường server.
+  const recognitionConfig = await resolveCardRecognitionConfig(organizationId, context.supabase);
+
+  if (!recognitionConfig.enabled) {
     return NextResponse.json(
       {
         code: "recognition_disabled",
-        message: "Chức năng nhận dạng chưa được bật (thiếu CARD_RECOGNITION_ENABLED=true).",
+        message:
+          recognitionConfig.source === "database"
+            ? "Chức năng nhận dạng đã bị tắt cho tổ chức này trong trang Mô hình AI."
+            : "Chức năng nhận dạng chưa được bật (thiếu CARD_RECOGNITION_ENABLED=true).",
         request_id: requestId,
       },
       { status: 503 },
@@ -94,7 +100,7 @@ export async function POST(request: Request) {
   let recognized;
   let providerName: string;
   try {
-    const provider = getCardRecognitionProvider();
+    const provider = await getCardRecognitionProvider({ organizationId, supabase: context.supabase });
     providerName = provider.name;
     const buffer = Buffer.from(await image.arrayBuffer());
     const result = await provider.recognize({

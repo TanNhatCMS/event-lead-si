@@ -1,8 +1,11 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import {
   isCardRecognitionEnabled,
   type CardRecognitionProvider,
   type RecognizedCard,
 } from "./card-recognition";
+import { resolveCardRecognitionConfig } from "./model-config";
 
 /**
  * Provider nhận dạng danh thiếp GIẢ LẬP dùng cho phát triển UI và demo.
@@ -115,22 +118,35 @@ export class MockCardRecognitionProvider implements CardRecognitionProvider {
   }
 }
 
+export interface GetCardRecognitionProviderOpts {
+  /**
+   * Id tổ chức để ưu tiên cấu hình từ bảng `ai_model_configs`
+   * (xem `resolveCardRecognitionConfig`). Bỏ qua để dùng env như trước đây.
+   */
+  organizationId?: string;
+  /** Client Supabase của user (đã qua RLS) dùng để đọc `ai_model_configs`. */
+  supabase?: SupabaseClient;
+}
+
 /**
  * Chọn provider nhận dạng danh thiếp.
  *
+ * - Khi truyền `organizationId` + `supabase`: ưu tiên cấu hình DB của tổ chức
+ *   (trang /cai-dat/ai-models), fallback sang env.
  * - Mặc định: `MockCardRecognitionProvider` (dữ liệu mẫu, không gọi dịch vụ ngoài).
- * - Khi `CARD_RECOGNITION_PROVIDER` được cấu hình (ví dụ provider thật đã duyệt),
- *   đăng ký class tương ứng tại đây.
  *
- * TODO: thay bằng provider thật khi OCR provider được chọn và phê duyệt
- * (specs/001-event-lead-platform, plan.md Giai đoạn 0.3).
+ * TODO: đăng ký provider thật tại đây khi OCR provider được chọn và phê duyệt
+ * (specs/001-event-lead-platform, plan.md Giai đoạn 0.3). Khi đó cập nhật thêm
+ * ALLOWED_PROVIDERS trong src/app/cai-dat/ai-models/actions.ts.
  */
-export function getCardRecognitionProvider(): CardRecognitionProvider {
-  const configured = (process.env.CARD_RECOGNITION_PROVIDER ?? "").trim().toLowerCase();
-  if (configured && configured !== "mock") {
+export async function getCardRecognitionProvider(
+  opts?: GetCardRecognitionProviderOpts,
+): Promise<CardRecognitionProvider> {
+  const resolved = await resolveCardRecognitionConfig(opts?.organizationId, opts?.supabase);
+  if (resolved.provider && resolved.provider !== "mock") {
     // TODO: đăng ký provider thật tại đây khi được phê duyệt.
     throw new Error(
-      `Provider nhận dạng "${configured}" chưa được triển khai. Chỉ hỗ trợ "mock" ở thời điểm hiện tại.`,
+      `Provider nhận dạng "${resolved.provider}" chưa được triển khai. Chỉ hỗ trợ "mock" ở thời điểm hiện tại.`,
     );
   }
   return new MockCardRecognitionProvider();

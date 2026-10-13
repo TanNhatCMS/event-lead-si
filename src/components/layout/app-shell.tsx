@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ContactRound, FileUp, UsersRound } from "lucide-react";
+import { BrainCircuit, ContactRound, FileUp, UsersRound } from "lucide-react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { OrgSwitcher } from "@/components/auth/org-switcher";
@@ -42,6 +42,14 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
                 className="hidden items-center gap-1.5 rounded-lg px-3 py-2 font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 md:inline-flex"
               >
                 <UsersRound size={16} /> Thành viên
+              </Link>
+            )}
+            {canManageMembers && (
+              <Link
+                href="/cai-dat/ai-models"
+                className="hidden items-center gap-1.5 rounded-lg px-3 py-2 font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 md:inline-flex"
+              >
+                <BrainCircuit size={16} /> Mô hình AI
               </Link>
             )}
             {user ? (
