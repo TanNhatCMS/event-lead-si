@@ -14,6 +14,7 @@ Chỉ dùng khi tool báo available=true; nếu available=false thì BỎ QUA, k
 2. Tuyệt đối không bịa kết quả tìm kiếm. Không có kết quả thật thì trả findings rỗng.
 3. Mỗi phát hiện phải ghi rõ nguồn (URL). Ưu tiên nguồn chính thức của công ty.
 4. Tối đa 5 kết quả mỗi lượt gọi; gọi tối đa vài lượt cho một card, ưu tiên chất lượng từ khoá hơn số lượng.
+5. Khi cần đọc CHI TIẾT một trang (không chỉ snippet), dùng `web_fetch` với URL đó.
 
 ## Trạng thái hiện tại
 

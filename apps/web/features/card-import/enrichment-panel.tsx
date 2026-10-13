@@ -236,8 +236,35 @@ export function EnrichmentPanel({ recognized, onApply, fieldLabels }: Enrichment
                   {steps.map((step) => (
                     <li key={step.step}>
                       Bước {step.step}:{" "}
-                      {step.tools.length > 0 ? step.tools.join(", ") : "tổng hợp kết luận"} —{" "}
-                      {step.summary}
+                      {step.toolCalls.length > 0 ? (
+                        step.toolCalls.map((call, i) => (
+                          <span key={`${call.name}-${i}`}>
+                            {i > 0 && ", "}
+                            <span
+                              title={call.note}
+                              className={
+                                call.status === "error"
+                                  ? "font-medium text-red-600"
+                                  : call.status === "unavailable"
+                                    ? "font-medium text-amber-600"
+                                    : undefined
+                              }
+                            >
+                              {call.name}
+                              {call.status === "error"
+                                ? " ✗"
+                                : call.status === "unavailable"
+                                  ? " ⚠"
+                                  : ""}
+                            </span>
+                          </span>
+                        ))
+                      ) : step.tools.length > 0 ? (
+                        step.tools.join(", ")
+                      ) : (
+                        "tổng hợp kết luận"
+                      )}{" "}
+                      — {step.summary}
                     </li>
                   ))}
                 </ol>

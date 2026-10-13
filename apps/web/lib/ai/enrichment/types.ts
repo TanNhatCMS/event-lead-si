@@ -55,11 +55,32 @@ export const enrichmentFindingSchema = z.object({
 export type EnrichmentFinding = z.infer<typeof enrichmentFindingSchema>;
 
 /**
+ * Trạng thái một lượt gọi tool trong step — pattern bóc từ ZCode
+ * (`ToolCallState`/`ToolResultState` trong `agent/turn-state.ts`):
+ * ZCode theo dõi từng tool call thành công/thất bại riêng, không chỉ tên tool.
+ */
+export const enrichmentToolCallStatusSchema = z.enum(["ok", "unavailable", "error"]);
+
+export type EnrichmentToolCallStatus = z.infer<typeof enrichmentToolCallStatusSchema>;
+
+export const enrichmentToolCallSchema = z.object({
+  name: z.string(),
+  status: enrichmentToolCallStatusSchema,
+  /** Ghi chú ngắn khi không ok (VD: lý do unavailable, message lỗi). */
+  note: z.string().optional(),
+});
+
+export type EnrichmentToolCall = z.infer<typeof enrichmentToolCallSchema>;
+
+/**
  * Một bước trong vòng lặp agent (để hiển thị minh bạch quá trình).
  */
 export const enrichmentStepSchema = z.object({
   step: z.number().int().min(1),
+  /** Tên các tool đã gọi — giữ để tương thích UI cũ. */
   tools: z.array(z.string()),
+  /** Chi tiết từng lượt gọi tool kèm trạng thái. */
+  toolCalls: z.array(enrichmentToolCallSchema).default([]),
   summary: z.string(),
 });
 
