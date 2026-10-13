@@ -14,6 +14,8 @@ const PathsSchema = z.object({
     profileSettings: z.string().min(1),
     scanCard: z.string().min(1),
     aiModels: z.string().min(1),
+    contacts: z.string().min(1),
+    companies: z.string().min(1),
   }),
 });
 
@@ -31,6 +33,8 @@ const pathsConfig = PathsSchema.parse({
     profileSettings: '/home/settings',
     scanCard: '/home/quet-danh-thiep',
     aiModels: '/home/cai-dat/ai-models',
+    contacts: '/home/danh-ba',
+    companies: '/home/cong-ty',
   },
 } satisfies z.infer<typeof PathsSchema>);
 
