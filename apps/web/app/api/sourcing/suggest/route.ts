@@ -10,6 +10,7 @@ import {
   getAiModelConfig,
   getGatewayApiKey,
 } from '~/lib/ai/enrichment/model-config';
+import { withUserSpan } from '~/lib/otel/trace';
 
 const bodySchema = z.object({
   request_id: z.string().uuid('Mã yêu cầu không hợp lệ.'),
@@ -133,13 +134,16 @@ export async function POST(request: Request) {
 
   try {
     const provider = createGateway({ apiKey });
-    const generated = await generateText({
-      model: provider(model),
-      system: SYSTEM_PROMPT,
-      prompt,
-      output: Output.object({ schema: suggestionSchema }),
-      maxOutputTokens: 2000,
-    });
+    const generated = await withUserSpan('sourcing.suggest', user.id, () =>
+      generateText({
+        model: provider(model),
+        system: SYSTEM_PROMPT,
+        prompt,
+        output: Output.object({ schema: suggestionSchema }),
+        maxOutputTokens: 2000,
+        experimental_telemetry: { isEnabled: true },
+      }),
+    );
     return NextResponse.json({
       suggestions: generated.output?.suggestions ?? [],
       model_used: `${dbConfig ? 'database' : 'env'}:${model}`,

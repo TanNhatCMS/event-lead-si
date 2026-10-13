@@ -2,11 +2,10 @@ import { PageBody, PageHeader } from '@kit/ui/page';
 
 import { requireUserInServerComponent } from '~/lib/server/require-user-in-server-component';
 
-import { AuditLogList } from '../../../features/audit-log/audit-log-list';
+import { AuditTabs } from '../../../features/audit-log/audit-tabs';
 
 /**
- * Trang Nhật ký (Audit log, phase 1): xem/lọc các hành động đã ghi nhận.
- * Phase 2 sẽ bổ sung tab xem trace OpenTelemetry cho các bước LLM.
+ * Trang Nhật ký: tab Hành động (audit log) + tab Trace AI (OpenTelemetry).
  */
 export default async function AuditLogPage() {
   await requireUserInServerComponent();
@@ -15,12 +14,12 @@ export default async function AuditLogPage() {
     <>
       <PageHeader
         title="Nhật ký"
-        description="Các hành động đã thực hiện: tạo/sửa/xóa danh bạ, công ty, ghi chú, xác nhận danh thiếp."
+        description="Các hành động đã thực hiện và trace chi tiết từng bước AI."
       />
 
       <PageBody>
         <div className="mx-auto w-full max-w-4xl">
-          <AuditLogList />
+          <AuditTabs />
         </div>
       </PageBody>
     </>
