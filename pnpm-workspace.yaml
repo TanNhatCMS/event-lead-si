@@ -34,7 +34,7 @@ catalog:
   embla-carousel-react: 8.6.0
   input-otp: 1.4.2
   lucide-react: ^1.28.0
-  nanoid: ^5.1.6
+  nanoid: ^6.0.0
   next: 16.3.8
   next-intl: ^4.13.4
   next-safe-action: 8.6.0
@@ -63,7 +63,7 @@ catalog:
   turbo: 2.10.8
   typescript: 7.0.2
   vaul: 1.1.2
-  vitest: 4.1.10
+  vitest: 5.0.4
   zod: 4.4.3
 allowBuilds:
   '@tailwindcss/oxide': true
