@@ -337,6 +337,87 @@ export type Database = {
         };
         Relationships: [];
       };
+      sourcing_candidates: {
+        Row: {
+          company_id: string | null;
+          contact_id: string | null;
+          created_at: string;
+          evidence: unknown;
+          fit_summary: string | null;
+          id: string;
+          name: string;
+          notes: string;
+          request_id: string;
+          shortlisted: boolean;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          company_id?: string | null;
+          contact_id?: string | null;
+          created_at?: string;
+          evidence?: unknown;
+          fit_summary?: string | null;
+          id?: string;
+          name: string;
+          notes?: string;
+          request_id: string;
+          shortlisted?: boolean;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          company_id?: string | null;
+          contact_id?: string | null;
+          created_at?: string;
+          evidence?: unknown;
+          fit_summary?: string | null;
+          id?: string;
+          name?: string;
+          notes?: string;
+          request_id?: string;
+          shortlisted?: boolean;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      sourcing_requests: {
+        Row: {
+          created_at: string;
+          criteria: unknown;
+          id: string;
+          product_description: string;
+          status: string;
+          target_market: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          criteria?: unknown;
+          id?: string;
+          product_description?: string;
+          status?: string;
+          target_market?: string | null;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          criteria?: unknown;
+          id?: string;
+          product_description?: string;
+          status?: string;
+          target_market?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       meeting_notes: {
         Row: {
           author_user_id: string;

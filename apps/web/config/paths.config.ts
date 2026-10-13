@@ -16,6 +16,8 @@ const PathsSchema = z.object({
     aiModels: z.string().min(1),
     contacts: z.string().min(1),
     companies: z.string().min(1),
+    sourcing: z.string().min(1),
+    relationships: z.string().min(1),
   }),
 });
 
@@ -35,6 +37,8 @@ const pathsConfig = PathsSchema.parse({
     aiModels: '/home/cai-dat/ai-models',
     contacts: '/home/danh-ba',
     companies: '/home/cong-ty',
+    sourcing: '/home/sourcing',
+    relationships: '/home/quan-he',
   },
 } satisfies z.infer<typeof PathsSchema>);
 
