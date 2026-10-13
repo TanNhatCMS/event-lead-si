@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { Archive, Phone, Mail, Search, Users } from 'lucide-react';
+import { Archive, Download, Phone, Mail, Search, Users, X } from 'lucide-react';
 
 import { Badge } from '@kit/ui/badge';
 import { Button, buttonVariants } from '@kit/ui/button';
 import { Card, CardContent } from '@kit/ui/card';
+import { Checkbox } from '@kit/ui/checkbox';
 import { Input } from '@kit/ui/input';
 import { Spinner } from '@kit/ui/spinner';
 import { cn } from '@kit/ui/utils';
@@ -32,6 +33,8 @@ const STAGE_LABELS: Record<string, string> = {
   lost: 'Không tiếp tục',
 };
 
+type ExportFormat = 'csv' | 'excel' | 'vcard';
+
 function initials(name: string) {
   return name
     .trim()
@@ -51,7 +54,8 @@ function formatDate(iso: string) {
 
 /**
  * Danh sách liên hệ: tìm kiếm theo tên/email/SĐT/chức danh,
- * chuyển tab Đang hoạt động / Đã lưu trữ.
+ * chuyển tab Đang hoạt động / Đã lưu trữ, chọn nhiều để xuất file
+ * (CSV / Excel / vCard).
  */
 export function ContactsList() {
   const [query, setQuery] = useState('');
@@ -61,6 +65,9 @@ export function ContactsList() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState<ExportFormat | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 350);
@@ -81,6 +88,7 @@ export function ContactsList() {
       if (!res.ok) throw new Error(json.message ?? 'Tải danh sách thất bại.');
       setContacts(json.contacts);
       setTotal(json.total);
+      setSelected(new Set());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Tải danh sách thất bại.');
     } finally {
@@ -91,6 +99,55 @@ export function ContactsList() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleExport(format: ExportFormat) {
+    setExporting(format);
+    setExportError(null);
+    try {
+      const res = await fetch('/api/contacts/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          format,
+          ids: selected.size > 0 ? Array.from(selected) : [],
+          q: debounced,
+          archived,
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.message ?? 'Xuất file thất bại.');
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') ?? '';
+      const filename =
+        disposition.match(/filename="([^"]+)"/)?.[1] ?? `danh-ba.${format === 'vcard' ? 'vcf' : format === 'excel' ? 'xlsx' : 'csv'}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : 'Xuất file thất bại.');
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  const selectedCount = selected.size;
+  const exportLabel = selectedCount > 0 ? `Xuất ${selectedCount} đã chọn` : 'Xuất tất cả';
 
   return (
     <div className="flex w-full flex-col gap-5">
@@ -124,6 +181,10 @@ export function ContactsList() {
         </div>
       </div>
 
+      {exportError && (
+        <p className="text-sm text-destructive">{exportError}</p>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <Spinner />
@@ -153,15 +214,75 @@ export function ContactsList() {
         </Card>
       ) : (
         <>
-          <p className="text-xs text-muted-foreground">
-            {total} liên hệ{debounced ? ` khớp "${debounced}"` : ''}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              {total} liên hệ{debounced ? ` khớp "${debounced}"` : ''}
+              {selectedCount > 0 && ` · đã chọn ${selectedCount}`}
+            </p>
+            <div className="flex items-center gap-2">
+              {selectedCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelected(new Set())}
+                >
+                  <X className="mr-1 h-3.5 w-3.5" /> Bỏ chọn
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={exporting !== null}
+                onClick={() => handleExport('csv')}
+                title={exportLabel}
+              >
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                {exporting === 'csv' ? 'Đang xuất...' : 'CSV'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={exporting !== null}
+                onClick={() => handleExport('excel')}
+                title={exportLabel}
+              >
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                {exporting === 'excel' ? 'Đang xuất...' : 'Excel'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={exporting !== null}
+                onClick={() => handleExport('vcard')}
+                title={exportLabel}
+              >
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                {exporting === 'vcard' ? 'Đang xuất...' : 'vCard'}
+              </Button>
+            </div>
+          </div>
           <ul className="grid gap-3 md:grid-cols-2">
             {contacts.map((c) => (
-              <li key={c.id}>
+              <li key={c.id} className="relative">
+                <div
+                  className="absolute left-3 top-3 z-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Checkbox
+                    checked={selected.has(c.id)}
+                    onCheckedChange={() => toggleSelect(c.id)}
+                    aria-label={`Chọn ${c.full_name}`}
+                    className="bg-background"
+                  />
+                </div>
                 <Link href={`/home/danh-ba/${c.id}`}>
-                  <Card className="transition-colors hover:border-primary/40">
-                    <CardContent className="flex items-start gap-4 p-4">
+                  <Card
+                    className={cn(
+                      'transition-colors hover:border-primary/40',
+                      selected.has(c.id) && 'border-primary/60 ring-1 ring-primary/30',
+                    )}
+                  >
+                    <CardContent className="flex items-start gap-4 p-4 pl-11">
                       <div
                         className={cn(
                           'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold',

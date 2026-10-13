@@ -56,6 +56,7 @@
     "recharts": "catalog:",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:",
+    "xlsx": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
