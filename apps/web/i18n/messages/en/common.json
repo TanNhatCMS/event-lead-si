@@ -56,16 +56,18 @@
   "newVersionSubmitButton": "Reload and Update",
   "back": "Back",
   "routes": {
-    "home": "Home",
     "account": "Account",
-    "members": "Members",
-    "billing": "Billing",
-    "dashboard": "Dashboard",
-    "settings": "Settings",
-    "profile": "Profile",
+    "aiModels": "AI Models",
     "application": "Application",
+    "billing": "Billing",
+    "companies": "Companies",
+    "contacts": "Contacts",
+    "dashboard": "Dashboard",
+    "home": "Home",
+    "members": "Members",
+    "profile": "Profile",
     "scanCard": "Scan Card",
-    "aiModels": "AI Models"
+    "settings": "Settings"
   },
   "roles": {
     "owner": {

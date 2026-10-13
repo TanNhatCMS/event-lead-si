@@ -1,4 +1,4 @@
-import { Cpu, Home, ScanLine, User } from 'lucide-react';
+import { Building2, Cpu, Home, ScanLine, User, Users } from 'lucide-react';
 import { z } from 'zod';
 
 import { NavigationConfigSchema } from '@kit/ui/navigation-schema';
@@ -22,6 +22,16 @@ const routes = [
         label: 'common.routes.scanCard',
         path: pathsConfig.app.scanCard,
         Icon: <ScanLine className={iconClasses} />,
+      },
+      {
+        label: 'common.routes.contacts',
+        path: pathsConfig.app.contacts,
+        Icon: <Users className={iconClasses} />,
+      },
+      {
+        label: 'common.routes.companies',
+        path: pathsConfig.app.companies,
+        Icon: <Building2 className={iconClasses} />,
       },
       {
         label: 'common.routes.aiModels',
