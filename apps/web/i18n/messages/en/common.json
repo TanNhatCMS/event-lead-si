@@ -63,7 +63,9 @@
     "dashboard": "Dashboard",
     "settings": "Settings",
     "profile": "Profile",
-    "application": "Application"
+    "application": "Application",
+    "scanCard": "Scan Card",
+    "aiModels": "AI Models"
   },
   "roles": {
     "owner": {
@@ -74,7 +76,7 @@
     }
   },
   "cookieBanner": {
-    "title": "Hey, we use cookies \uD83C\uDF6A",
+    "title": "Hey, we use cookies 🍪",
     "description": "This website uses cookies to ensure you get the best experience on our website.",
     "reject": "Reject",
     "accept": "Accept"

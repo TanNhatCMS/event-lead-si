@@ -14,4 +14,5 @@ export const locales: string[] = [
   defaultLocale,
   // Add other locales here as needed
   // Example: 'es', 'fr', 'de', etc.
+  ...(defaultLocale === 'en' ? [] : ['en']),
 ];

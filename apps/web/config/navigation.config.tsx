@@ -1,4 +1,4 @@
-import { Home, User } from 'lucide-react';
+import { Cpu, Home, ScanLine, User } from 'lucide-react';
 import { z } from 'zod';
 
 import { NavigationConfigSchema } from '@kit/ui/navigation-schema';
@@ -17,6 +17,16 @@ const routes = [
         Icon: <Home className={iconClasses} />,
         // exact match: do not stay highlighted on nested routes like /home/settings
         highlightMatch: `^${pathsConfig.app.home}$`,
+      },
+      {
+        label: 'common.routes.scanCard',
+        path: pathsConfig.app.scanCard,
+        Icon: <ScanLine className={iconClasses} />,
+      },
+      {
+        label: 'common.routes.aiModels',
+        path: pathsConfig.app.aiModels,
+        Icon: <Cpu className={iconClasses} />,
       },
     ],
   },
