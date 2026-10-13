@@ -344,6 +344,8 @@ export type Database = {
           contact_id: string;
           created_at: string;
           deleted_at: string | null;
+          done_at: string | null;
+          due_at: string | null;
           id: string;
           note_type: string;
           updated_at: string;
@@ -355,6 +357,8 @@ export type Database = {
           contact_id: string;
           created_at?: string;
           deleted_at?: string | null;
+          done_at?: string | null;
+          due_at?: string | null;
           id?: string;
           note_type?: string;
           updated_at?: string;
@@ -366,6 +370,8 @@ export type Database = {
           contact_id?: string;
           created_at?: string;
           deleted_at?: string | null;
+          done_at?: string | null;
+          due_at?: string | null;
           id?: string;
           note_type?: string;
           updated_at?: string;

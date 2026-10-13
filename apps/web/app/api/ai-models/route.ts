@@ -30,6 +30,12 @@ const CAPABILITIES = [
     description:
       'Gợi ý bổ sung thông tin công ty/người liên hệ từ dữ liệu đã quét. Agent chỉ gợi ý, người dùng quyết định.',
   },
+  {
+    id: 'followup_draft',
+    label: 'Soạn tin nhắn follow-up',
+    description:
+      'Soạn nháp tin nhắn chăm sóc từ thông tin liên hệ và ghi chú cuộc gặp. Chỉ trả bản nháp, không tự gửi.',
+  },
 ] as const;
 
 const upsertSchema = z.object({

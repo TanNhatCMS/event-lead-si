@@ -84,9 +84,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .order('created_at', { ascending: false }),
     supabase
       .from('meeting_notes')
-      .select('id, body, note_type, created_at')
+      .select('id, body, note_type, due_at, done_at, created_at')
       .eq('contact_id', id)
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(20),
   ]);
