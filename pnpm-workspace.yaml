@@ -65,6 +65,7 @@ catalog:
   vaul: 1.1.2
   vitest: 5.0.4
   "@e965/xlsx": 0.20.3
+  xlsx: 0.18.5
   zod: 4.4.3
 allowBuilds:
   '@tailwindcss/oxide': true
@@ -73,3 +74,8 @@ allowBuilds:
   '@swc/core': true
   'esbuild': true
   'sharp': true
+minimumReleaseAgeExclude:
+  - '@ai-sdk/gateway@4.0.111'
+  - '@ai-sdk/provider-utils@5.0.59'
+  - '@ai-sdk/provider@4.0.27'
+  - ai@7.0.138

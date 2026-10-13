@@ -492,6 +492,60 @@ export type Database = {
         };
         Relationships: [];
       };
+      otel_spans: {
+        Row: {
+          attributes: Json;
+          created_at: string;
+          duration_ms: number;
+          ended_at: string;
+          events: Json;
+          id: string;
+          kind: string;
+          name: string;
+          parent_span_id: string | null;
+          span_id: string;
+          started_at: string;
+          status_code: string;
+          status_message: string | null;
+          trace_id: string;
+          user_id: string | null;
+        };
+        Insert: {
+          attributes?: Json;
+          created_at?: string;
+          duration_ms?: number;
+          ended_at: string;
+          events?: Json;
+          id?: string;
+          kind?: string;
+          name: string;
+          parent_span_id?: string | null;
+          span_id: string;
+          started_at: string;
+          status_code?: string;
+          status_message?: string | null;
+          trace_id: string;
+          user_id?: string | null;
+        };
+        Update: {
+          attributes?: Json;
+          created_at?: string;
+          duration_ms?: number;
+          ended_at?: string;
+          events?: Json;
+          id?: string;
+          kind?: string;
+          name?: string;
+          parent_span_id?: string | null;
+          span_id?: string;
+          started_at?: string;
+          status_code?: string;
+          status_message?: string | null;
+          trace_id?: string;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

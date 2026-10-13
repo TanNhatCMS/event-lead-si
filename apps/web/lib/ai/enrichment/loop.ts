@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@kit/supabase/database";
 
+import { withUserSpan } from "~/lib/otel/trace";
+
 import type { RecognizedCard } from "~/lib/ai/card-recognition";
 import {
   ENRICHABLE_FIELDS,
@@ -10,6 +12,7 @@ import {
   enrichmentResultSchema,
   type EnrichmentResult,
   type EnrichmentStep,
+  type EnrichmentToolCall,
 } from "./types";
 import { buildEnrichmentTools } from "./tools";
 import { getGatewayApiKey, resolveEnrichmentConfig } from "./model-config";
@@ -61,17 +64,89 @@ function buildUserPrompt(recognized: RecognizedCard): string {
   ].join("\n");
 }
 
-function summarizeSteps(result: {
-  steps: Array<{ toolCalls?: Array<{ toolName: string }> }>;
-}): EnrichmentStep[] {
+/** Kiểu tối giản của một step mà AI SDK trả về (đủ để suy trạng thái tool). */
+interface SdkToolCall {
+  toolCallId: string;
+  toolName: string;
+}
+
+interface SdkToolResult {
+  toolCallId: string;
+  toolName: string;
+  type: "tool-result" | "tool-error";
+  output?: unknown;
+  error?: unknown;
+}
+
+interface SdkStep {
+  toolCalls?: SdkToolCall[];
+  toolResults?: SdkToolResult[];
+}
+
+function shortNote(value: unknown, max = 140): string {
+  const text =
+    value instanceof Error
+      ? value.message
+      : typeof value === "string"
+        ? value
+        : JSON.stringify(value) ?? "";
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > max ? flat.slice(0, max) + "…" : flat;
+}
+
+/**
+ * Suy trạng thái từng lượt gọi tool — pattern bóc từ ZCode
+ * (`ToolCallState`/`ToolResultState`): SDK đánh dấu tool throw bằng
+ * `type: "tool-error"`; tool của app báo `available: false` khi chưa
+ * cấu hình hoặc bị chặn — tách riêng thành "unavailable" để UI
+ * phân biệt "chưa bật" với "chạy lỗi".
+ */
+function describeToolCall(
+  call: SdkToolCall,
+  result: SdkToolResult | undefined
+): EnrichmentToolCall {
+  const name = call.toolName;
+  if (!result) return { name, status: "ok" };
+  if (result.type === "tool-error") {
+    return { name, status: "error", note: shortNote(result.error) || "lỗi không xác định" };
+  }
+  const output = result.output as
+    | { available?: boolean; message?: string }
+    | null
+    | undefined;
+  if (output && typeof output === "object" && output.available === false) {
+    return {
+      name,
+      status: "unavailable",
+      note: shortNote(output.message) || "tool không khả dụng",
+    };
+  }
+  return { name, status: "ok" };
+}
+
+function summarizeSteps(result: { steps: SdkStep[] }): EnrichmentStep[] {
   return result.steps.map((step, index) => {
-    const names = (step.toolCalls ?? []).map((call) => call.toolName);
+    const calls = step.toolCalls ?? [];
+    const resultsById = new Map(
+      (step.toolResults ?? []).map((r) => [r.toolCallId, r])
+    );
+    const toolCalls = calls.map((call) =>
+      describeToolCall(call, resultsById.get(call.toolCallId))
+    );
+    const names = toolCalls.map((c) => c.name);
     return {
       step: index + 1,
       tools: names,
+      toolCalls,
       summary:
         names.length > 0
-          ? `Gọi ${names.join(", ")}`
+          ? `Gọi ${toolCalls
+              .map((c) =>
+                c.status === "ok"
+                  ? c.name
+                  : `${c.name} (${c.status === "error" ? "lỗi" : "không khả dụng"})`
+              )
+              .join(", ")}`
           : "Suy luận và tổng hợp kết luận",
     };
   });
@@ -100,18 +175,33 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
 
   const provider = createGateway({ apiKey });
   const tools = buildEnrichmentTools();
+  // Giữ giá trị đã narrow trước khi vào closure (TS không narrow qua closure).
+  const modelId = config.model;
+  const spanUserId = input.userId ?? 'unknown';
 
   let generated;
   try {
-    generated = await generateText({
-      model: provider(config.model),
-      system: SYSTEM_PROMPT,
-      prompt: buildUserPrompt(input.recognized),
-      tools,
-      stopWhen: stepCountIs(MAX_STEPS),
-      maxOutputTokens: 2000,
-      output: Output.object({ schema: enrichmentOutputSchema }),
-    });
+    generated = await withUserSpan("enrichment.run", spanUserId, () =>
+      generateText({
+        model: provider(modelId),
+        system: SYSTEM_PROMPT,
+        prompt: buildUserPrompt(input.recognized),
+        tools,
+        stopWhen: stepCountIs(MAX_STEPS),
+        maxOutputTokens: 2000,
+        output: Output.object({ schema: enrichmentOutputSchema }),
+        experimental_telemetry: { isEnabled: true },
+        // Log từng step ngay khi xong (thay vì chờ cả loop) — pattern từ
+        // ZCode TurnMachine (phase executing_tools → aggregating_results):
+        // giúp debug khi loop chạy lâu hoặc kẹt ở tool nào.
+        onStepFinish: (step) => {
+          const names = (step.toolCalls ?? []).map((c) => c.toolName).join(", ");
+          console.log(
+            `[enrichment] step xong: tools=[${names || "suy luận"}] finishReason=${step.finishReason}`
+          );
+        },
+      }),
+    );
   } catch (err) {
     throw new Error(
       "Chạy agent làm giàu dữ liệu thất bại: " +
