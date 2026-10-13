@@ -4,4 +4,4 @@
  * @type {string}
  * @default 'en'
  */
-export const defaultLocale = process.env.NEXT_PUBLIC_DEFAULT_LOCALE ?? 'en';
+export const defaultLocale = process.env.NEXT_PUBLIC_DEFAULT_LOCALE ?? 'vi';
