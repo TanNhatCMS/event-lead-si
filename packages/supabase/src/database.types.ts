@@ -138,6 +138,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      business_chunks: {
+        Row: {
+          content: string;
+          embedding: string | null;
+          embedding_model: string | null;
+          embedding_version: number | null;
+          entity_id: string;
+          entity_type: string;
+          id: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          content: string;
+          embedding?: string | null;
+          embedding_model?: string | null;
+          embedding_version?: number | null;
+          entity_id: string;
+          entity_type: string;
+          id?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          content?: string;
+          embedding?: string | null;
+          embedding_model?: string | null;
+          embedding_version?: number | null;
+          entity_id?: string;
+          entity_type?: string;
+          id?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       card_imports: {
         Row: {
           batch_id: string | null;
@@ -196,6 +232,30 @@ export type Database = {
           state?: string;
           storage_path?: string;
           submitted_by?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      chat_conversations: {
+        Row: {
+          created_at: string;
+          id: string;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          title?: string;
           updated_at?: string;
           user_id?: string;
         };
@@ -369,6 +429,96 @@ export type Database = {
         };
         Relationships: [];
       };
+      documents: {
+        Row: {
+          chunk_count: number;
+          created_at: string;
+          document_type: string;
+          effective_date: string;
+          error_message: string | null;
+          file_name: string;
+          file_size_bytes: number;
+          id: string;
+          mime_type: string;
+          page_count: number | null;
+          status: string;
+          storage_path: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          chunk_count?: number;
+          created_at?: string;
+          document_type: string;
+          effective_date: string;
+          error_message?: string | null;
+          file_name: string;
+          file_size_bytes: number;
+          id?: string;
+          mime_type: string;
+          page_count?: number | null;
+          status?: string;
+          storage_path: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          chunk_count?: number;
+          created_at?: string;
+          document_type?: string;
+          effective_date?: string;
+          error_message?: string | null;
+          file_name?: string;
+          file_size_bytes?: number;
+          id?: string;
+          mime_type?: string;
+          page_count?: number | null;
+          status?: string;
+          storage_path?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      document_chunks: {
+        Row: {
+          chunk_index: number;
+          content: string;
+          document_id: string;
+          embedding: string | null;
+          embedding_model: string | null;
+          embedding_version: number | null;
+          id: string;
+          page_number: number | null;
+          section_title: string | null;
+          user_id: string;
+        };
+        Insert: {
+          chunk_index: number;
+          content: string;
+          document_id: string;
+          embedding?: string | null;
+          embedding_model?: string | null;
+          embedding_version?: number | null;
+          id?: string;
+          page_number?: number | null;
+          section_title?: string | null;
+          user_id: string;
+        };
+        Update: {
+          chunk_index?: number;
+          content?: string;
+          document_id?: string;
+          embedding?: string | null;
+          embedding_model?: string | null;
+          embedding_version?: number | null;
+          id?: string;
+          page_number?: number | null;
+          section_title?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       sourcing_candidates: {
         Row: {
           company_id: string | null;
@@ -492,12 +642,155 @@ export type Database = {
         };
         Relationships: [];
       };
+      otel_spans: {
+        Row: {
+          attributes: Json;
+          created_at: string;
+          duration_ms: number;
+          ended_at: string;
+          events: Json;
+          id: string;
+          kind: string;
+          name: string;
+          parent_span_id: string | null;
+          span_id: string;
+          started_at: string;
+          status_code: string;
+          status_message: string | null;
+          trace_id: string;
+          user_id: string | null;
+        };
+        Insert: {
+          attributes?: Json;
+          created_at?: string;
+          duration_ms?: number;
+          ended_at: string;
+          events?: Json;
+          id?: string;
+          kind?: string;
+          name: string;
+          parent_span_id?: string | null;
+          span_id: string;
+          started_at: string;
+          status_code?: string;
+          status_message?: string | null;
+          trace_id: string;
+          user_id?: string | null;
+        };
+        Update: {
+          attributes?: Json;
+          created_at?: string;
+          duration_ms?: number;
+          ended_at?: string;
+          events?: Json;
+          id?: string;
+          kind?: string;
+          name?: string;
+          parent_span_id?: string | null;
+          span_id?: string;
+          started_at?: string;
+          status_code?: string;
+          status_message?: string | null;
+          trace_id?: string;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
+      rag_index_queue: {
+        Row: {
+          attempts: number;
+          created_at: string;
+          entity_id: string;
+          entity_type: string;
+          error_message: string | null;
+          id: string;
+          operation: string;
+          status: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          attempts?: number;
+          created_at?: string;
+          entity_id: string;
+          entity_type: string;
+          error_message?: string | null;
+          id?: string;
+          operation: string;
+          status?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          attempts?: number;
+          created_at?: string;
+          entity_id?: string;
+          entity_type?: string;
+          error_message?: string | null;
+          id?: string;
+          operation?: string;
+          status?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      chat_messages: {
+        Row: {
+          citations: unknown;
+          content: string;
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          role: string;
+          user_id: string;
+        };
+        Insert: {
+          citations?: unknown;
+          content: string;
+          conversation_id: string;
+          created_at?: string;
+          id?: string;
+          role: string;
+          user_id: string;
+        };
+        Update: {
+          citations?: unknown;
+          content?: string;
+          conversation_id?: string;
+          created_at?: string;
+          id?: string;
+          role?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      match_rag_chunks: {
+        Args: {
+          query_embedding: string;
+          p_user_id: string;
+          p_sources: string[];
+          match_count: number;
+          match_threshold: number;
+        };
+        Returns: {
+          chunk_id: string;
+          source_type: string;
+          source_id: string;
+          label: string;
+          document_type: string | null;
+          effective_date: string | null;
+          section_title: string | null;
+          page_number: number | null;
+          content: string;
+          similarity: number;
+        }[];
+      };
     };
     Enums: {
       [_ in never]: never;

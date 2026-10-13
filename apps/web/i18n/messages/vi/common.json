@@ -75,7 +75,8 @@
     "sourcing": "Sourcing",
     "relationships": "Trí tuệ quan hệ",
     "settings": "Cài đặt",
-    "auditLog": "Nhật ký"
+    "auditLog": "Nhật ký",
+    "assistant": "Trợ lý"
   },
   "settingsTabDescription": "Quản lý cài đặt và tùy chọn.",
   "settingsTabLabel": "Cài đặt",
