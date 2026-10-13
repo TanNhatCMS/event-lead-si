@@ -238,7 +238,9 @@ function CapabilityForm({
             disabled={saving}
           />
           <p className="text-xs text-muted-foreground">
-            Tên provider, ví dụ “mock”. Provider OCR thật chưa được chọn.
+            Tên provider. Với nhận dạng danh thiếp: “mock” dùng dữ liệu mẫu,
+            “vision” dùng model AI đọc ảnh thật (cần AI_GATEWAY_API_KEY và model
+            có khả năng xem ảnh, ví dụ “openai/gpt-4o”).
           </p>
         </div>
         <div className="space-y-1.5">

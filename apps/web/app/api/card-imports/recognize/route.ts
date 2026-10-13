@@ -18,8 +18,8 @@ const maxFileBytes = 10 * 1024 * 1024;
  * POST /api/card-imports/recognize
  *
  * Nhận ảnh danh thiếp (multipart: `image`, `import_id` tùy chọn) và chạy qua
- * CardRecognitionProvider phía máy chủ. Hiện dùng MockCardRecognitionProvider —
- * provider OCR thật chưa được chọn.
+ * CardRecognitionProvider phía máy chủ: "mock" (dữ liệu mẫu) hoặc "vision"
+ * (model AI đọc ảnh thật qua AI Gateway), chọn theo cấu hình.
  *
  * Kết quả là dữ liệu CHƯA XÁC MINH — route này KHÔNG tự lưu hồ sơ. Hồ sơ chỉ
  * được tạo khi người dùng bấm XÁC NHẬN ở POST /api/card-imports/confirm

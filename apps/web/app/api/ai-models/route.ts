@@ -22,7 +22,7 @@ const CAPABILITIES = [
     id: 'card_recognition',
     label: 'Nhận dạng danh thiếp',
     description:
-      'Chuyển ảnh danh thiếp thành dữ liệu có cấu trúc ở bước Quét & nhận dạng.',
+      'Chuyển ảnh danh thiếp thành dữ liệu có cấu trúc ở bước Quét & nhận dạng. Provider "vision": model AI đọc ảnh thật qua AI Gateway.',
   },
   {
     id: 'lead_enrichment',

@@ -8,6 +8,7 @@ import {
   type RecognizedCard,
 } from "./card-recognition";
 import { resolveCardRecognitionConfig } from "~/lib/ai/model-config";
+import { VisionCardRecognitionProvider } from "./vision-provider";
 
 /**
  * Provider nhận dạng danh thiếp GIẢ LẬP dùng cho phát triển UI và demo.
@@ -16,8 +17,8 @@ import { resolveCardRecognitionConfig } from "~/lib/ai/model-config";
  * cố tình chứa field ở trạng thái `uncertain` và `missing` để UI thể hiện đúng
  * các trạng thái cần người dùng kiểm tra kỹ.
  *
- * KHÔNG dùng cho dữ liệu thật. Khi provider OCR thật được duyệt, tạo class mới
- * implements `CardRecognitionProvider` và đăng ký trong `getCardRecognitionProvider`.
+ * KHÔNG dùng cho dữ liệu thật. OCR thật = `VisionCardRecognitionProvider`
+ * (model AI xem ảnh qua AI Gateway), đăng ký trong `getCardRecognitionProvider`.
  */
 
 interface SampleField {
@@ -143,18 +144,27 @@ export interface GetCardRecognitionProviderOpts {
  *
  * - Khi truyền `userId` + `supabase`: ưu tiên cấu hình DB của user
  *   (trang cài đặt Mô hình AI), fallback sang env.
- * - Mặc định: `MockCardRecognitionProvider` (dữ liệu mẫu, không gọi dịch vụ ngoài).
- *
- * TODO: đăng ký provider thật tại đây khi OCR provider được chọn và phê duyệt.
+ * - `"mock"`: dữ liệu mẫu, không gọi dịch vụ ngoài (mặc định).
+ * - `"vision"`: model AI có khả năng xem ảnh qua AI Gateway — OCR thật
+ *   theo quyết định của người dùng ngày 2026-10-13. Model lấy từ cấu hình
+ *   capability `card_recognition` (DB) hoặc env `CARD_RECOGNITION_MODEL`.
  */
 export async function getCardRecognitionProvider(
   opts?: GetCardRecognitionProviderOpts,
 ): Promise<CardRecognitionProvider> {
   const resolved = await resolveCardRecognitionConfig(opts?.userId, opts?.supabase);
-  if (resolved.provider && resolved.provider !== "mock") {
-    // TODO: đăng ký provider thật tại đây khi được phê duyệt.
+  const provider = (resolved.provider ?? "mock").trim().toLowerCase();
+
+  if (provider === "vision") {
+    const model =
+      resolved.model?.trim() ||
+      (process.env.CARD_RECOGNITION_MODEL ?? "").trim();
+    return new VisionCardRecognitionProvider({ model });
+  }
+
+  if (provider !== "mock") {
     throw new Error(
-      `Provider nhận dạng "${resolved.provider}" chưa được triển khai. Chỉ hỗ trợ "mock" ở thời điểm hiện tại.`,
+      `Provider nhận dạng "${resolved.provider}" chưa được triển khai. Hỗ trợ: "mock", "vision".`,
     );
   }
   return new MockCardRecognitionProvider();
