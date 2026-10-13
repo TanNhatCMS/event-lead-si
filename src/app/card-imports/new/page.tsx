@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 
+import { CardImportTabs } from "@/features/card-import/card-import-tabs";
 import { AppShell } from "@/components/layout/app-shell";
 import { CardUploadForm } from "@/features/card-import/card-upload-form";
 import { getOrganizationContext } from "@/lib/auth/organization";
@@ -16,6 +17,7 @@ export default async function NewCardImportPage() {
 
   return (
     <AppShell>
+     <main>
       <div className="mx-auto max-w-3xl">
         <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900"><ArrowLeft size={16} />Về tổng quan</Link>
         <div className="mt-8">
@@ -28,6 +30,11 @@ export default async function NewCardImportPage() {
           <div className="mt-5 flex items-start gap-2 border-t border-slate-100 pt-4 text-xs leading-5 text-slate-500"><ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-600" />Ảnh được lưu trong bucket private và giới hạn theo tổ chức. Chỉ tải danh thiếp mà bạn có quyền lưu trữ.</div>
         </section>
       </div>
+      <section className="mt-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+        <CardImportTabs />
+        <div className="mt-5 flex items-start gap-2 border-t border-slate-100 pt-4 text-xs leading-5 text-slate-500"><ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-600" />Ảnh được lưu trong bucket private và giới hạn theo tổ chức. Chỉ tải danh thiếp mà bạn có quyền lưu trữ.</div>
+      </section>
+    </main>
     </AppShell>
   );
 }
