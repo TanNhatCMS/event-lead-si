@@ -63,7 +63,7 @@ catalog:
   turbo: 2.10.8
   typescript: 7.0.2
   vaul: 1.1.2
-  vitest: 4.1.10
+  vitest: 4.1.11
   zod: 4.4.3
 allowBuilds:
   '@tailwindcss/oxide': true
