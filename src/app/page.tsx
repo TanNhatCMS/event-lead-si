@@ -25,6 +25,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { LogoutButton } from "@/components/auth/logout-button";
+import { OrgSwitcher } from "@/components/auth/org-switcher";
+import { getOrgOptions, hasOrganizationRole } from "@/lib/auth/organization";
+
 const contacts = [
   { initials: "ML", name: "Minh Anh Lê", role: "Giám đốc phát triển kinh doanh", company: "Nexora Technologies", event: "Vietnam Expo 2026", date: "12 thg 10, 2026", status: "Đã xác nhận", tone: "blue", color: "bg-blue-100 text-blue-700" },
   { initials: "JH", name: "Ji-hoon Park", role: "Trưởng phòng đối tác", company: "Hanwha Solutions", event: "Vietnam Expo 2026", date: "12 thg 10, 2026", status: "Cần rà soát", tone: "amber", color: "bg-orange-100 text-orange-700" },
@@ -58,7 +62,11 @@ function Metric({ icon: Icon, label, value, delta, color }: { icon: typeof Conta
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  const { user, options, activeOrgId } = await getOrgOptions();
+  const activeRole = options.find((option) => option.organization_id === activeOrgId)?.role;
+  const canManageMembers = hasOrganizationRole(activeRole, ["owner", "admin"]);
+
   return (
     <div className="flex min-h-screen bg-[#f7f8fa]">
       <aside className="fixed inset-y-0 left-0 z-10 hidden w-[246px] flex-col border-r border-slate-200 bg-white px-4 lg:flex">
@@ -66,16 +74,28 @@ export default function Home() {
           <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-indigo-600 text-white shadow-sm"><ContactRound size={19} /></div>
           <div><div className="text-[15px] font-semibold tracking-tight">EventLead <span className="text-indigo-600">SI</span></div><div className="text-[10px] font-medium uppercase tracking-[.12em] text-slate-400">Partner intelligence</div></div>
         </div>
-        <button className="mt-4 flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(15,23,42,.04)]">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-indigo-50 text-[11px] font-semibold text-indigo-700">EL</div>
-          <div className="flex-1"><div className="text-xs font-semibold">EventLead Vietnam</div><div className="mt-0.5 text-[10px] text-slate-500">Gói dùng thử</div></div><ChevronDown size={15} className="text-slate-400" />
-        </button>
+        <div className="mt-4">
+          {user && options.length > 0 ? (
+            <OrgSwitcher options={options} activeId={activeOrgId} />
+          ) : (
+            <button className="flex w-full items-center gap-3 rounded-lg border border-slate-200 px-3 py-2.5 text-left shadow-[0_1px_2px_rgba(15,23,42,.04)]">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-indigo-50 text-[11px] font-semibold text-indigo-700">EL</div>
+              <div className="flex-1"><div className="text-xs font-semibold">EventLead Vietnam</div><div className="mt-0.5 text-[10px] text-slate-500">Gói dùng thử</div></div><ChevronDown size={15} className="text-slate-400" />
+            </button>
+          )}
+        </div>
         <div className="mt-8 space-y-1">
           <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[.12em] text-slate-400">Không gian làm việc</p>
           <SidebarItem icon={LayoutDashboard} label="Tổng quan" active />
           <SidebarItem icon={ContactRound} label="Danh bạ đối tác" count="128" />
           <SidebarItem icon={CalendarDays} label="Sự kiện" count="6" />
           <SidebarItem icon={FileUp} label="Nhập danh thiếp" />
+          {canManageMembers && (
+            <Link href="/thanh-vien" className="flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-slate-600 hover:bg-slate-100">
+              <UsersRound size={17} strokeWidth={1.8} />
+              <span className="flex-1">Thành viên</span>
+            </Link>
+          )}
           <SidebarItem icon={Building2} label="Doanh nghiệp" />
         </div>
         <div className="mt-8 space-y-1">
@@ -86,17 +106,44 @@ export default function Home() {
         <div className="mt-auto space-y-1 pb-4">
           <SidebarItem icon={CircleHelp} label="Trợ giúp" />
           <SidebarItem icon={Settings2} label="Cài đặt" />
+          {user ? (
             <div className="mt-3 flex items-center gap-3 border-t border-slate-100 px-2 pt-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-800">EL</div>
-            <div className="flex-1"><div className="text-xs font-semibold">Tài khoản minh họa</div><div className="text-[10px] text-slate-500">Chưa kết nối</div></div><MoreHorizontal size={17} className="text-slate-400" />
-          </div>
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-800">
+                {(user.email ?? "U").slice(0, 2).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-semibold">{user.email}</div>
+                <div className="text-[10px] text-slate-500">Đã đăng nhập</div>
+              </div>
+              <LogoutButton />
+            </div>
+          ) : (
+            <div className="mt-3 flex items-center gap-3 border-t border-slate-100 px-2 pt-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-800">EL</div>
+              <div className="flex-1"><div className="text-xs font-semibold">Tài khoản minh họa</div><div className="text-[10px] text-slate-500">Chưa kết nối</div></div><MoreHorizontal size={17} className="text-slate-400" />
+            </div>
+          )}
         </div>
       </aside>
 
       <main className="min-w-0 flex-1 lg:ml-[246px]">
         <header className="sticky top-0 z-[5] flex h-[68px] items-center justify-between border-b border-slate-200/80 bg-white/90 px-5 backdrop-blur md:px-8">
           <div className="flex items-center gap-2 text-[13px] text-slate-400"><span>Tổng quan</span><ChevronRight size={14} /><span className="font-medium text-slate-700">Bảng điều khiển</span></div>
-          <div className="flex items-center gap-3"><button className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Thông báo"><Bell size={18} /><span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" /></button><div className="h-6 w-px bg-slate-200" /><button className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600"><CalendarDays size={15} />30 ngày qua<ChevronDown size={14} /></button></div>
+          <div className="flex items-center gap-3">
+            {user && options.length > 1 && (
+              <div className="lg:hidden">
+                <OrgSwitcher options={options} activeId={activeOrgId} />
+              </div>
+            )}
+            {!user && (
+              <Link
+                href="/login"
+                className="inline-flex h-9 items-center rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                Đăng nhập
+              </Link>
+            )}
+            <button className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Thông báo"><Bell size={18} /><span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-rose-500 ring-2 ring-white" /></button><div className="h-6 w-px bg-slate-200" /><button className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600"><CalendarDays size={15} />30 ngày qua<ChevronDown size={14} /></button></div>
         </header>
 
         <div className="mx-auto max-w-[1440px] px-5 py-7 md:px-8 md:py-9">
