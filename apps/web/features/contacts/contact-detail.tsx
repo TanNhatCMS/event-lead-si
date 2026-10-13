@@ -6,12 +6,13 @@ import {
   Archive,
   ArchiveRestore,
   Building2,
-  FileText,
   Pencil,
   ShieldCheck,
   Trash2,
   X,
 } from 'lucide-react';
+
+import { NotesPanel } from './notes-panel';
 
 import {
   AlertDialog,
@@ -71,6 +72,8 @@ type Note = {
   id: string;
   body: string;
   note_type: string;
+  due_at: string | null;
+  done_at: string | null;
   created_at: string;
 };
 
@@ -420,32 +423,13 @@ export function ContactDetail({ contactId }: { contactId: string }) {
         </CardContent>
       </Card>
 
-      {/* Ghi chú */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4" /> Ghi chú cuộc gặp
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {notes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Chưa có ghi chú. Tính năng ghi chú sẽ bổ sung ở bản follow-up.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {notes.map((n) => (
-                <li key={n.id} className="rounded-lg bg-muted/50 p-3">
-                  <p className="text-sm whitespace-pre-wrap">{n.body}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {formatDateTime(n.created_at)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      {/* Ghi chú & việc cần làm */}
+      <NotesPanel
+        contactId={contact.id}
+        contactName={contact.full_name}
+        notes={notes}
+        onChanged={load}
+      />
 
       <Separator />
 

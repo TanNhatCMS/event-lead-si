@@ -15,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@kit/ui/card';
 import { Spinner } from '@kit/ui/spinner';
 import { cn } from '@kit/ui/utils';
 
+import { RemindersWidget } from './reminders-widget';
+
 type Stats = {
   contacts_active: number;
   contacts_archived: number;
@@ -132,6 +134,9 @@ export function DashboardOverview() {
 
   return (
     <div className="flex w-full flex-col gap-5">
+      {/* Nhắc việc cần chăm sóc */}
+      <RemindersWidget />
+
       {/* Thẻ số liệu */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((s) => (
