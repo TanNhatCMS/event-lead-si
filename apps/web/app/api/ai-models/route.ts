@@ -22,7 +22,7 @@ const CAPABILITIES = [
     id: 'card_recognition',
     label: 'Nhận dạng danh thiếp',
     description:
-      'Chuyển ảnh danh thiếp thành dữ liệu có cấu trúc ở bước Quét & nhận dạng. Provider "vision": model AI đọc ảnh thật qua AI Gateway.',
+      'Chuyển ảnh danh thiếp thành dữ liệu có cấu trúc ở bước Quét & nhận dạng.',
   },
   {
     id: 'lead_enrichment',
@@ -35,6 +35,12 @@ const CAPABILITIES = [
     label: 'Soạn tin nhắn follow-up',
     description:
       'Soạn nháp tin nhắn chăm sóc từ thông tin liên hệ và ghi chú cuộc gặp. Chỉ trả bản nháp, không tự gửi.',
+  },
+  {
+    id: 'sourcing_assist',
+    label: 'Trợ lý sourcing',
+    description:
+      'Gợi ý ứng viên từ danh bạ, soạn câu hỏi/RFQ/dàn ý đàm phán. Chỉ gợi ý và soạn nháp, người dùng quyết định.',
   },
 ] as const;
 
