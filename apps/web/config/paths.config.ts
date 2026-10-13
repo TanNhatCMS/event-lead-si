@@ -18,6 +18,7 @@ const PathsSchema = z.object({
     companies: z.string().min(1),
     sourcing: z.string().min(1),
     relationships: z.string().min(1),
+    auditLog: z.string().min(1),
   }),
 });
 
@@ -39,6 +40,7 @@ const pathsConfig = PathsSchema.parse({
     companies: '/home/cong-ty',
     sourcing: '/home/sourcing',
     relationships: '/home/quan-he',
+    auditLog: '/home/nhat-ky',
   },
 } satisfies z.infer<typeof PathsSchema>);
 

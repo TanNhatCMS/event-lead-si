@@ -74,7 +74,8 @@
     "scanCard": "Quét danh thiếp",
     "sourcing": "Sourcing",
     "relationships": "Trí tuệ quan hệ",
-    "settings": "Cài đặt"
+    "settings": "Cài đặt",
+    "auditLog": "Nhật ký"
   },
   "settingsTabDescription": "Quản lý cài đặt và tùy chọn.",
   "settingsTabLabel": "Cài đặt",
