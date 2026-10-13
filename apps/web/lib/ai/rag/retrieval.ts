@@ -72,7 +72,7 @@ export interface RetrieveContextResult {
 export const DEFAULT_SIMILARITY_THRESHOLD = 0.35;
 
 /** Dạng row trả về từ RPC `match_rag_chunks` (migration T001). */
-interface MatchRow {
+export interface MatchRow {
   chunk_id: string;
   source_type: RagSourceType;
   source_id: string;
@@ -145,6 +145,38 @@ function documentVersionRank(
 }
 
 /**
+ * QĐ2: mỗi document_type chỉ giữ các chunk của bản mới nhất
+ * (effective_date DESC, rồi created_at DESC). Hàm pure để unit test.
+ */
+export function selectNewestDocumentRows(
+  documentRows: MatchRow[],
+  createdAtByDoc: Map<string, string>,
+): MatchRow[] {
+  const newestByType = new Map<string, MatchRow>();
+  for (const row of documentRows) {
+    const key = row.document_type ?? '__none__';
+    const current = newestByType.get(key);
+    if (
+      !current ||
+      documentVersionRank(row, createdAtByDoc) > documentVersionRank(current, createdAtByDoc)
+    ) {
+      newestByType.set(key, row);
+    }
+  }
+  const newestDocIds = new Set(
+    [...newestByType.values()].map((row) => row.source_id),
+  );
+  return documentRows
+    .filter((row) => newestDocIds.has(row.source_id))
+    .sort(
+      (a, b) =>
+        documentVersionRank(b, createdAtByDoc).localeCompare(
+          documentVersionRank(a, createdAtByDoc),
+        ) || b.similarity - a.similarity,
+    );
+}
+
+/**
  * Truy xuất context cho câu hỏi chat.
  *
  * @param userId Id người dùng (FR-014: chỉ lấy dữ liệu của chính user).
@@ -186,29 +218,7 @@ export async function retrieveContext(
   // (effective_date DESC, rồi created_at DESC).
   const docIds = [...new Set(documentRows.map((row) => row.source_id))];
   const createdAtByDoc = await fetchDocumentCreatedAt(supabase, docIds);
-
-  const newestByType = new Map<string, MatchRow>();
-  for (const row of documentRows) {
-    const key = row.document_type ?? '__none__';
-    const current = newestByType.get(key);
-    if (
-      !current ||
-      documentVersionRank(row, createdAtByDoc) > documentVersionRank(current, createdAtByDoc)
-    ) {
-      newestByType.set(key, row);
-    }
-  }
-  const newestDocIds = new Set(
-    [...newestByType.values()].map((row) => row.source_id),
-  );
-  const keptDocumentRows = documentRows
-    .filter((row) => newestDocIds.has(row.source_id))
-    .sort(
-      (a, b) =>
-        documentVersionRank(b, createdAtByDoc).localeCompare(
-          documentVersionRank(a, createdAtByDoc),
-        ) || b.similarity - a.similarity,
-    );
+  const keptDocumentRows = selectNewestDocumentRows(documentRows, createdAtByDoc);
 
   // QĐ1: tài liệu đứng trước danh bạ trong context (ưu tiên nguồn tài liệu).
   const ordered: MatchRow[] = [
