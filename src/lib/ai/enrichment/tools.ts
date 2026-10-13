@@ -1,11 +1,17 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { loadEnrichmentMarkdown } from "./load-markdown";
+
 /**
  * Các tool/skill mà agent loop dùng để thu thập thông tin.
  * Hai tool đầu là hàm thuần (pure), luôn khả dụng. `web_search` bị giới hạn:
  * chỉ trả kết quả khi có SEARCH_API_KEY — ngược lại trả `{ available: false }`
  * để agent tự bỏ qua và không "bịa" kết quả tìm kiếm.
+ *
+ * Mô tả chi tiết của từng skill được viết ra file markdown trong `skills/`
+ * và load vào lúc chạy — sửa file .md là đổi được hành vi agent mà không
+ * cần đụng code.
  */
 
 // ---------------------------------------------------------------------------
@@ -137,8 +143,7 @@ export interface WebSearchResult {
 // ---------------------------------------------------------------------------
 
 const normalizeVnPhoneTool = tool({
-  description:
-    "Chuẩn hoá số điện thoại Việt Nam: chuyển 0xxx thành +84, tách nhà mạng, định dạng hiển thị. Dùng cho trường phone.",
+  description: loadEnrichmentMarkdown("skills/normalize-vn-phone.md"),
   inputSchema: z.object({
     phone: z.string().describe("Số điện thoại thô cần chuẩn hoá"),
   }),
@@ -146,8 +151,7 @@ const normalizeVnPhoneTool = tool({
 });
 
 const extractCompanyDomainTool = tool({
-  description:
-    "Từ địa chỉ email suy ra domain công ty và website dự kiến. Không áp dụng cho email công cộng (gmail, yahoo…).",
+  description: loadEnrichmentMarkdown("skills/extract-company-domain.md"),
   inputSchema: z.object({
     email: z.string().describe("Địa chỉ email cần phân tích"),
   }),
@@ -155,8 +159,7 @@ const extractCompanyDomainTool = tool({
 });
 
 const webSearchTool = tool({
-  description:
-    "Tìm kiếm thông tin công khai trên web theo từ khoá (tên công ty, website, email…). Chỉ dùng khi tool báo available=true; nếu available=false thì BỎ QUA, không được tự suy đoán kết quả.",
+  description: loadEnrichmentMarkdown("skills/web-search.md"),
   inputSchema: z.object({
     query: z.string().describe("Từ khoá tìm kiếm"),
     maxResults: z
