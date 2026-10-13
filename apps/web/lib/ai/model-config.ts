@@ -93,7 +93,7 @@ export async function resolveCardRecognitionConfig(
   return {
     provider:
       (process.env.CARD_RECOGNITION_PROVIDER ?? '').trim().toLowerCase() || 'mock',
-    model: null,
+    model: (process.env.CARD_RECOGNITION_MODEL ?? '').trim() || null,
     enabled: isCardRecognitionEnabled(),
     source: 'env',
   };
