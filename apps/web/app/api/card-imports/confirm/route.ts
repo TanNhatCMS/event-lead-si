@@ -7,6 +7,7 @@ import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
 import { logAudit } from '~/lib/audit/log-audit';
 import { recognizedCardSchema } from '~/lib/ai/card-recognition';
+import { enqueueBusinessIndexSafe } from '~/lib/ai/rag/contact-index';
 
 const fieldKeys = [
   'fullName',
@@ -228,6 +229,11 @@ export async function POST(request: Request) {
     }
   }
 
+  // Enqueue index RAG cho công ty vừa lưu/liên kết (fire-and-forget).
+  if (companyId) {
+    void enqueueBusinessIndexSafe(user.id, 'company', companyId, 'upsert', supabase);
+  }
+
   // 2) Tạo contact từ các giá trị người dùng đã xác nhận.
   const { data: contact, error: contactError } = await supabase
     .from('contacts')
@@ -257,6 +263,9 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+
+  // Enqueue index RAG cho liên hệ vừa tạo (fire-and-forget).
+  void enqueueBusinessIndexSafe(user.id, 'contact', contact.id, 'upsert', supabase);
 
   // 3) Ghi evidence từng trường: giá trị máy đọc thô + giá trị đã xác nhận.
   const reviewedAt = new Date().toISOString();

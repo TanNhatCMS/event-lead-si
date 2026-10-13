@@ -70,7 +70,8 @@
     "sourcing": "Sourcing",
     "relationships": "Relationships",
     "settings": "Settings",
-    "auditLog": "Audit log"
+    "auditLog": "Audit log",
+    "assistant": "Assistant"
   },
   "roles": {
     "owner": {

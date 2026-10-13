@@ -1,4 +1,4 @@
-import { Building2, Cpu, History, Home, Network, PackageSearch, ScanLine, User, Users } from 'lucide-react';
+import { Bot, Building2, Cpu, History, Home, Network, PackageSearch, ScanLine, User, Users } from 'lucide-react';
 import { z } from 'zod';
 
 import { NavigationConfigSchema } from '@kit/ui/navigation-schema';
@@ -52,6 +52,11 @@ const routes = [
         label: 'common.routes.auditLog',
         path: pathsConfig.app.auditLog,
         Icon: <History className={iconClasses} />,
+      },
+      {
+        label: 'common.routes.assistant',
+        path: pathsConfig.app.assistant,
+        Icon: <Bot className={iconClasses} />,
       },
     ],
   },

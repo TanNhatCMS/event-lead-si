@@ -8,6 +8,7 @@ import type { Database } from '@kit/supabase/database';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
 import { logAudit } from '~/lib/audit/log-audit';
+import { enqueueBusinessIndexSafe } from '~/lib/ai/rag/contact-index';
 
 type ContactUpdate = Database['public']['Tables']['contacts']['Update'];
 
@@ -208,6 +209,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     metadata: { fields: Object.keys(fields) },
   });
 
+  // Enqueue index RAG (worker tự chuyển thành delete nếu hồ sơ bị archived).
+  void enqueueBusinessIndexSafe(user.id, 'contact', id, 'upsert', supabase);
+
   return NextResponse.json({ ok: true, request_id: requestId });
 }
 
@@ -253,6 +257,9 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     entityId: id,
     summary: `Xóa liên hệ${owned.full_name ? `: ${owned.full_name}` : ''}`,
   });
+
+  // Xóa chunk khỏi index RAG.
+  void enqueueBusinessIndexSafe(user.id, 'contact', id, 'delete', supabase);
 
   return NextResponse.json({ ok: true, request_id: requestId });
 }

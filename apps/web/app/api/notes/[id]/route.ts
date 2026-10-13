@@ -8,6 +8,7 @@ import type { Database } from '@kit/supabase/database';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
 import { logAudit } from '~/lib/audit/log-audit';
+import { enqueueBusinessIndexSafe } from '~/lib/ai/rag/contact-index';
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -115,6 +116,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     summary: `Cập nhật ghi chú (${owned.note_type}): ${owned.body.slice(0, 60)}`,
   });
 
+  // Enqueue index RAG (fire-and-forget).
+  void enqueueBusinessIndexSafe(user.id, 'meeting_note', id, 'upsert', supabase);
+
   return NextResponse.json({ ok: true, request_id: requestId });
 }
 
@@ -159,6 +163,9 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     entityId: id,
     summary: `Xóa ghi chú (${owned.note_type}): ${owned.body.slice(0, 60)}`,
   });
+
+  // Ghi chú xóa mềm → xóa chunk khỏi index RAG.
+  void enqueueBusinessIndexSafe(user.id, 'meeting_note', id, 'delete', supabase);
 
   return NextResponse.json({ ok: true, request_id: requestId });
 }
