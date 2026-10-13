@@ -22,11 +22,32 @@ import { extractDocument, type ExtractedPage } from './extract';
  * `documents.status`/`error_message` để UI polling hiển thị.
  */
 
-const CHUNK_SIZE = 1000;
-const CHUNK_OVERLAP = 200;
 const EMBEDDING_VERSION = 1;
 const EMBED_BATCH_SIZE = 64;
 const INSERT_BATCH_SIZE = 100;
+
+/**
+ * Adaptive chunking theo handbook Phần 12: kích thước chunk linh hoạt
+ * theo loại nội dung.
+ * - price_list: chunk NHỎ (600) — giá cần truy xuất chính xác từng dòng.
+ * - contract_template: chunk LỚN (1500) — điều khoản cần ngữ cảnh đầy đủ.
+ * - catalogue/capability_profile: trung bình (1000).
+ * - other: mặc định (1000).
+ */
+export const CHUNK_CONFIG_BY_TYPE: Record<string, { size: number; overlap: number }> = {
+  price_list: { size: 600, overlap: 120 },
+  catalogue: { size: 1000, overlap: 200 },
+  contract_template: { size: 1500, overlap: 300 },
+  capability_profile: { size: 1000, overlap: 200 },
+  other: { size: 1000, overlap: 200 },
+};
+
+export function getChunkConfig(documentType: string | null | undefined): {
+  size: number;
+  overlap: number;
+} {
+  return CHUNK_CONFIG_BY_TYPE[documentType ?? 'other'] ?? CHUNK_CONFIG_BY_TYPE.other!;
+}
 
 interface RagChunk {
   chunk_index: number;
@@ -46,10 +67,13 @@ function splitSentences(text: string): string[] {
 }
 
 /**
- * Recursive splitter ~1000 ký tự/chunk, overlap ~200: ngắt ưu tiên
- * đoạn văn → câu → từ; giữ `page_number` và `section_title` từng chunk.
+ * Recursive splitter theo config: ngắt ưu tiên đoạn văn → câu → từ;
+ * giữ `page_number` và `section_title` từng chunk.
  */
-export function chunkPages(pages: ExtractedPage[]): RagChunk[] {
+export function chunkPages(
+  pages: ExtractedPage[],
+  config: { size: number; overlap: number } = getChunkConfig('other'),
+): RagChunk[] {
   const chunks: RagChunk[] = [];
   let chunkIndex = 0;
 
@@ -76,28 +100,28 @@ export function chunkPages(pages: ExtractedPage[]): RagChunk[] {
         if (current.trim()) {
           pushChunk(page.page_number, section.section_title, current);
           // Overlap: giữ đuôi chunk trước làm đầu chunk sau.
-          const tail = current.slice(-CHUNK_OVERLAP);
+          const tail = current.slice(-config.overlap);
           current = tail.length >= 50 ? tail : '';
         }
       };
 
       for (const paragraph of paragraphs) {
-        if ((current + '\n\n' + paragraph).length <= CHUNK_SIZE) {
+        if ((current + '\n\n' + paragraph).length <= config.size) {
           current = current ? `${current}\n\n${paragraph}` : paragraph;
           continue;
         }
         // Đoạn văn quá dài → tách theo câu.
         for (const sentence of splitSentences(paragraph)) {
-          if ((current + ' ' + sentence).length <= CHUNK_SIZE) {
+          if ((current + ' ' + sentence).length <= config.size) {
             current = current ? `${current} ${sentence}` : sentence;
           } else {
-            if (sentence.length > CHUNK_SIZE) {
+            if (sentence.length > config.size) {
               // Câu đơn quá dài → tách theo từ.
               flush();
               const words = sentence.split(/\s+/).filter(Boolean);
               let wordChunk = '';
               for (const word of words) {
-                if ((wordChunk + ' ' + word).length <= CHUNK_SIZE) {
+                if ((wordChunk + ' ' + word).length <= config.size) {
                   wordChunk = wordChunk ? `${wordChunk} ${word}` : word;
                 } else {
                   pushChunk(page.page_number, section.section_title, wordChunk);
@@ -191,7 +215,7 @@ export async function ingestDocument(input: IngestDocumentInput): Promise<void> 
   try {
     const { data: doc, error: fetchError } = await supabase
       .from('documents')
-      .select('id, storage_path, mime_type, file_name')
+      .select('id, storage_path, mime_type, file_name, document_type')
       .eq('id', documentId)
       .eq('user_id', userId)
       .maybeSingle();
@@ -224,7 +248,7 @@ export async function ingestDocument(input: IngestDocumentInput): Promise<void> 
       return;
     }
 
-    const chunks = chunkPages(extracted.pages);
+    const chunks = chunkPages(extracted.pages, getChunkConfig(doc.document_type));
     if (chunks.length === 0) {
       await setStatus({
         status: 'needs_ocr',
