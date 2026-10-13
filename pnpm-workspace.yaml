@@ -4,7 +4,7 @@ packages:
   - tooling/*
 catalog:
   '@hookform/resolvers': ^5.2.2
-  ai: 7.0.137
+  ai: 7.0.138
   react-easy-crop: 5.5.7
   '@makerkit/data-loader-supabase-core': ^0.0.10
   '@makerkit/data-loader-supabase-nextjs': ^1.2.5
