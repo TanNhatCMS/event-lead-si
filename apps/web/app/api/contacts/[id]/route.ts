@@ -7,6 +7,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@kit/supabase/database';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { logAudit } from '~/lib/audit/log-audit';
+
 type ContactUpdate = Database['public']['Tables']['contacts']['Update'];
 
 const UUID_PATTERN =
@@ -33,7 +35,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function getOwnedContact(supabase: SupabaseClient<Database>, userId: string, id: string) {
   const { data, error } = await supabase
     .from('contacts')
-    .select('id')
+    .select('id, full_name')
     .eq('id', id)
     .eq('user_id', userId)
     .maybeSingle();
@@ -198,6 +200,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     await supabase.from('contact_field_evidence').insert(evidenceRows);
   }
 
+  await logAudit(supabase, user.id, {
+    action: 'contact.update',
+    entityType: 'contact',
+    entityId: id,
+    summary: `Cập nhật liên hệ${owned.full_name ? `: ${owned.full_name}` : ''}`,
+    metadata: { fields: Object.keys(fields) },
+  });
+
   return NextResponse.json({ ok: true, request_id: requestId });
 }
 
@@ -236,6 +246,13 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   if (error) {
     return errorJson(requestId, 'delete_failed', 'Chưa xóa được liên hệ.', 500);
   }
+
+  await logAudit(supabase, user.id, {
+    action: 'contact.delete',
+    entityType: 'contact',
+    entityId: id,
+    summary: `Xóa liên hệ${owned.full_name ? `: ${owned.full_name}` : ''}`,
+  });
 
   return NextResponse.json({ ok: true, request_id: requestId });
 }

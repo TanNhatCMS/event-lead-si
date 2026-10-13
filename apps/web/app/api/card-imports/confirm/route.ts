@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { logAudit } from '~/lib/audit/log-audit';
 import { recognizedCardSchema } from '~/lib/ai/card-recognition';
 
 const fieldKeys = [
@@ -316,6 +317,14 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+
+  await logAudit(supabase, user.id, {
+    action: 'card_import.confirm',
+    entityType: 'contact',
+    entityId: contact.id,
+    summary: `Xác nhận danh thiếp, tạo liên hệ: ${input.fields.fullName.trim()}`,
+    metadata: { import_id: input.importId },
+  });
 
   return NextResponse.json(
     {

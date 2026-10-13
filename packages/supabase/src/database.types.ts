@@ -34,8 +34,40 @@ export type Database = {
   };
   public: {
     Tables: {
-      accounts: {
+      audit_logs: {
         Row: {
+          action: string;
+          created_at: string;
+          entity_id: string | null;
+          entity_type: string;
+          id: string;
+          metadata: Json;
+          summary: string;
+          user_id: string;
+        };
+        Insert: {
+          action: string;
+          created_at?: string;
+          entity_id?: string | null;
+          entity_type: string;
+          id?: string;
+          metadata?: Json;
+          summary?: string;
+          user_id: string;
+        };
+        Update: {
+          action?: string;
+          created_at?: string;
+          entity_id?: string | null;
+          entity_type?: string;
+          id?: string;
+          metadata?: Json;
+          summary?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      accounts: {        Row: {
           created_at: string | null;
           created_by: string | null;
           email: string | null;

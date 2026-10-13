@@ -7,6 +7,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@kit/supabase/database';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { logAudit } from '~/lib/audit/log-audit';
+
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -33,7 +35,7 @@ async function getOwnedNote(
 ) {
   const { data, error } = await supabase
     .from('meeting_notes')
-    .select('id')
+    .select('id, body, note_type')
     .eq('id', id)
     .eq('user_id', userId)
     .is('deleted_at', null)
@@ -106,6 +108,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     return errorJson(requestId, 'update_failed', 'Chưa cập nhật được ghi chú.', 500);
   }
 
+  await logAudit(supabase, user.id, {
+    action: 'note.update',
+    entityType: 'meeting_note',
+    entityId: id,
+    summary: `Cập nhật ghi chú (${owned.note_type}): ${owned.body.slice(0, 60)}`,
+  });
+
   return NextResponse.json({ ok: true, request_id: requestId });
 }
 
@@ -143,6 +152,13 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   if (error) {
     return errorJson(requestId, 'delete_failed', 'Chưa xóa được ghi chú.', 500);
   }
+
+  await logAudit(supabase, user.id, {
+    action: 'note.delete',
+    entityType: 'meeting_note',
+    entityId: id,
+    summary: `Xóa ghi chú (${owned.note_type}): ${owned.body.slice(0, 60)}`,
+  });
 
   return NextResponse.json({ ok: true, request_id: requestId });
 }
