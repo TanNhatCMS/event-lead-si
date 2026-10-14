@@ -14,9 +14,11 @@
    5. `20261014040000_otel_spans.sql`
    6. `20261014050000_rag_chatbot.sql`
    7. `20261014060000_ai_prompts.sql`
-3. Tạo bucket Storage `documents` (private, 25MB).
-4. Bật pgvector extension (cho RAG): `create extension if not exists vector;`
-5. Lấy **Project URL**, **anon key**, **service-role key** từ Dashboard.
+3. Lấy **Project URL**, **anon key**, **service-role key** từ Dashboard.
+
+> **Lưu ý**: migrations tự tạo bucket Storage `documents` (private, 25MB) và
+> `business-cards` (private, 10MB), và bật extension `vector` cho pgvector —
+> không cần làm thủ công các bước này.
 
 ### 1.2. AI Gateway
 
@@ -91,8 +93,9 @@ Bấm **Deploy**. Vercel tự build (`pnpm --filter web build`) và cấp URL.
 ## 4. Lưu ý vận hành
 
 - **Timeout**: API routes AI set `maxDuration: 60` giây trong `vercel.json`
-  (streaming chat, ingest tài liệu). Gói Vercel miễn phí giới hạn 10s —
-  cần gói Pro cho timeout dài.
+  (streaming chat, ingest tài liệu). Đây là mức tối đa của gói Vercel Hobby
+  (miễn phí) — mặc định Vercel chỉ cho 10s, set `maxDuration` lên 60s là chạy
+  được. Chỉ khi cần timeout lâu hơn 60s (tối đa 300s) mới cân nhắc gói Pro.
 - **Ingest tài liệu**: chạy nền bằng `after()` của Next.js — trên Vercel
   hoạt động trong giới hạn function timeout.
 - **Secrets**: không bao giờ commit `.env.local`, không log API keys.

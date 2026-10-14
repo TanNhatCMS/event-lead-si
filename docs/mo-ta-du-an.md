@@ -66,7 +66,7 @@ thứ gì ra ngoài.
 - **AI**: Vercel AI SDK v7 — `streamText` (chat), `embedMany` (embeddings),
   `generateText` + tool calling (agent enrichment). Không dùng LangChain.
 - **RAG**: chunking recursive (~1000 ký tự, overlap ~200, thích ứng theo loại),
-  embeddings 1536 chiều, tìm kiếm vector HNSW trên pgvector, ngưỡng similarity 0.3.
+  embeddings 1536 chiều, tìm kiếm vector HNSW trên pgvector, ngưỡng similarity mặc định 0.35 (cấu hình được qua ai_model_configs).
 - **Quan sát**: OpenTelemetry — span các bước AI lưu vào bảng `otel_spans`.
 - **Monorepo**: Turborepo — `apps/web` (app chính), `packages/*` (shared).
 
