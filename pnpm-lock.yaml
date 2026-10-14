@@ -96,9 +96,6 @@ catalogs:
     input-otp:
       specifier: 1.5.0
       version: 1.5.0
-    lucide-react:
-      specifier: ^1.28.0
-      version: 1.55.0
     nanoid:
       specifier: ^6.0.0
       version: 6.0.2
@@ -301,7 +298,7 @@ importers:
         version: 4.4.0
       lucide-react:
         specifier: 'catalog:'
-        version: 1.55.0(@types/react@19.2.18)(react@19.2.8)
+        version: 1.56.0(@types/react@19.2.18)(react@19.2.8)
       mammoth:
         specifier: ^1.13.0
         version: 1.13.0
@@ -447,7 +444,7 @@ importers:
         version: 19.2.4(@types/react@19.2.18)
       lucide-react:
         specifier: 'catalog:'
-        version: 1.55.0(@types/react@19.2.18)(react@19.2.8)
+        version: 1.56.0(@types/react@19.2.18)(react@19.2.8)
       next:
         specifier: 'catalog:'
         version: 16.3.8(@babel/core@7.29.7)(@opentelemetry/api@1.9.0)(@playwright/test@1.62.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -508,7 +505,7 @@ importers:
         version: 19.2.18
       lucide-react:
         specifier: 'catalog:'
-        version: 1.55.0(@types/react@19.2.18)(react@19.2.8)
+        version: 1.56.0(@types/react@19.2.18)(react@19.2.8)
       next:
         specifier: 'catalog:'
         version: 16.3.8(@babel/core@7.29.7)(@opentelemetry/api@1.9.0)(@playwright/test@1.62.1)(@types/node@24.13.3)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -651,7 +648,7 @@ importers:
         version: 1.5.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       lucide-react:
         specifier: 'catalog:'
-        version: 1.55.0(@types/react@19.2.18)(react@19.2.8)
+        version: 1.56.0(@types/react@19.2.18)(react@19.2.8)
       react-dropzone:
         specifier: 'catalog:'
         version: 15.0.0(react@19.2.8)
@@ -4183,8 +4180,8 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@1.55.0:
-    resolution: {integrity: sha512-bSozQHiI3/8q7JvgoqVRGOYUi7fYT3siAZwmZsljjsOH2Husp/2ODdFf/leD+ZC/2yKfn7r8oh6yeoR3ITR5vA==}
+  lucide-react@1.56.0:
+    resolution: {integrity: sha512-b+hqj30/trHBma5r1zlKb6yLewQp6tUtnz9loc3xdrYerPmvLYhlEbyPVCJ8DOg2/blBf6lwPLznftFVACka6A==}
     peerDependencies:
       '@types/react': '*'
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -8077,7 +8074,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.55.0(@types/react@19.2.18)(react@19.2.8):
+  lucide-react@1.56.0(@types/react@19.2.18)(react@19.2.8):
     dependencies:
       react: 19.2.8
     optionalDependencies:
