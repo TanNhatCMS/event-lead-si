@@ -77,6 +77,7 @@ Database: apply các migration trong `apps/web/supabase/migrations/` lên Supaba
 4. `20261014030000_audit_logs.sql`
 5. `20261014040000_otel_spans.sql`
 6. `20261014050000_rag_chatbot.sql` — schema RAG (documents, chunks, queue, chat)
+7. `20261014060000_ai_prompts.sql` — bảng prompts AI tùy chỉnh qua UI
 
 Sau khi apply: regenerate Supabase types (`packages/supabase/src/database.types.ts`).
 
