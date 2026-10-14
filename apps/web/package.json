@@ -26,7 +26,10 @@
     "supabase:typegen": "pnpm run supabase:typegen:packages && pnpm run supabase:typegen:app",
     "supabase:typegen:packages": "supabase gen types typescript --local > ../../packages/supabase/src/database.types.ts",
     "supabase:typegen:app": "supabase gen types typescript --local > ./lib/database.types.ts",
-    "supabase:db:dump:local": "supabase db dump --local --data-only"
+    "supabase:db:dump:local": "supabase db dump --local --data-only",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ai-sdk/react": "catalog:",
@@ -41,7 +44,7 @@
     "@makerkit/data-loader-supabase-nextjs": "catalog:",
     "@marsidev/react-turnstile": "catalog:",
     "@opentelemetry/api": "1.9.0",
-    "@opentelemetry/core": "1.30.1",
+    "@opentelemetry/core": "2.8.0",
     "@opentelemetry/sdk-trace-base": "1.30.1",
     "@opentelemetry/sdk-trace-node": "1.30.1",
     "@supabase/supabase-js": "catalog:",
@@ -69,6 +72,7 @@
   "devDependencies": {
     "@kit/tsconfig": "workspace:*",
     "@next/bundle-analyzer": "catalog:",
+    "@playwright/test": "catalog:",
     "@tailwindcss/postcss": "catalog:",
     "@types/mdx": "catalog:",
     "@types/node": "catalog:",
@@ -81,7 +85,8 @@
     "supabase": "catalog:",
     "tailwindcss": "catalog:",
     "tailwindcss-animate": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "browserslist": [
     "last 1 versions",

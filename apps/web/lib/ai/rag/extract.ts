@@ -166,6 +166,7 @@ async function extractPdf(buffer: Buffer): Promise<ExtractedDocument> {
 async function extractDocx(buffer: Buffer): Promise<ExtractedDocument> {
   let mammoth: {
     extractRawText: (input: { buffer: Buffer }) => Promise<{ value: string }>;
+    convertToHtml: (input: { buffer: Buffer }) => Promise<{ value: string }>;
   };
   try {
     mammoth = nodeRequire()('mammoth') as typeof mammoth;
@@ -175,6 +176,27 @@ async function extractDocx(buffer: Buffer): Promise<ExtractedDocument> {
         'Hãy chạy `pnpm add mammoth` (task T002) rồi upload lại.',
     );
   }
+
+  // Ưu tiên convertToHtml để giữ cấu trúc heading (h1-h4) — theo handbook
+  // Phần 9.5 "Document Structure Based" chunking: dùng heading thật để chia
+  // section thay vì chỉ heuristic text.
+  let html: string | null = null;
+  try {
+    ({ value: html } = await mammoth.convertToHtml({ buffer }));
+  } catch {
+    html = null; // fallback sang raw text bên dưới
+  }
+
+  if (html) {
+    const sections = splitHtmlSections(html);
+    if (sections.length > 0) {
+      const pages: ExtractedPage[] = [{ page_number: 1, sections }];
+      const total_chars = sections.reduce((s, sec) => s + sec.text.length, 0);
+      if (total_chars > 0) return { pages, total_chars };
+    }
+  }
+
+  // Fallback: raw text + heuristic (như cũ).
   let value: string;
   try {
     ({ value } = await mammoth.extractRawText({ buffer }));
@@ -188,6 +210,41 @@ async function extractDocx(buffer: Buffer): Promise<ExtractedDocument> {
     { page_number: 1, sections },
   ];
   return { pages, total_chars: normalizeSpace(value).length };
+}
+
+/**
+ * Tách section từ HTML của mammoth: thẻ h1-h4 thành `section_title`,
+ * các đoạn p/li/table gom vào section gần nhất.
+ */
+export function splitHtmlSections(html: string): ExtractedSection[] {
+  const sections: ExtractedSection[] = [];
+  let currentTitle: string | null = null;
+  let currentParts: string[] = [];
+
+  const flush = () => {
+    const body = normalizeSpace(
+      currentParts.join('\n\n').replace(/<[^>]+>/g, ' '),
+    );
+    if (body) sections.push({ section_title: currentTitle, text: body });
+    currentParts = [];
+  };
+
+  // Tách theo block tags, giữ heading riêng.
+  const blockRe = /<(h[1-4]|p|li|table|tr)[^>]*>([\s\S]*?)<\/\1>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = blockRe.exec(html)) !== null) {
+    const tag = m[1]?.toLowerCase();
+    const inner = (m[2] ?? '').replace(/<[^>]+>/g, ' ').trim();
+    if (!inner) continue;
+    if (tag && /^h[1-4]$/.test(tag)) {
+      flush();
+      currentTitle = normalizeSpace(inner).slice(0, 120) || null;
+    } else {
+      currentParts.push(inner);
+    }
+  }
+  flush();
+  return sections;
 }
 
 /**

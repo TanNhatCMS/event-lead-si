@@ -145,6 +145,7 @@ export class VisionCardRecognitionProvider implements CardRecognitionProvider {
         ],
         output: Output.object({ schema: visionOutputSchema }),
         maxOutputTokens: 1500,
+        experimental_telemetry: { isEnabled: true },
       });
     } catch (err) {
       throw new Error(

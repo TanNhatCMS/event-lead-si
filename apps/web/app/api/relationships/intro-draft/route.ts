@@ -10,6 +10,7 @@ import {
   getAiModelConfig,
   getGatewayApiKey,
 } from '~/lib/ai/enrichment/model-config';
+import { withUserSpan } from '~/lib/otel/trace';
 
 const bodySchema = z.object({
   target_id: z.string().uuid('Mã liên hệ không hợp lệ.'),
@@ -102,12 +103,15 @@ export async function POST(request: Request) {
 
   try {
     const provider = createGateway({ apiKey });
-    const generated = await generateText({
-      model: provider(model),
-      system: SYSTEM_PROMPT,
-      prompt,
-      maxOutputTokens: 500,
-    });
+    const generated = await withUserSpan('relationships.intro_draft', user.id, () =>
+      generateText({
+        model: provider(model),
+        system: SYSTEM_PROMPT,
+        prompt,
+        maxOutputTokens: 500,
+        experimental_telemetry: { isEnabled: true },
+      }),
+    );
     return NextResponse.json({
       draft: generated.text.trim(),
       model_used: `${dbConfig ? 'database' : 'env'}:${model}`,

@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@kit/supabase/database";
 
+import { withUserSpan } from "~/lib/otel/trace";
+
 import type { RecognizedCard } from "~/lib/ai/card-recognition";
 import {
   ENRICHABLE_FIELDS,
@@ -173,27 +175,33 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
 
   const provider = createGateway({ apiKey });
   const tools = buildEnrichmentTools();
+  // Giữ giá trị đã narrow trước khi vào closure (TS không narrow qua closure).
+  const modelId = config.model;
+  const spanUserId = input.userId ?? 'unknown';
 
   let generated;
   try {
-    generated = await generateText({
-      model: provider(config.model),
-      system: SYSTEM_PROMPT,
-      prompt: buildUserPrompt(input.recognized),
-      tools,
-      stopWhen: stepCountIs(MAX_STEPS),
-      maxOutputTokens: 2000,
-      output: Output.object({ schema: enrichmentOutputSchema }),
-      // Log từng step ngay khi xong (thay vì chờ cả loop) — pattern từ
-      // ZCode TurnMachine (phase executing_tools → aggregating_results):
-      // giúp debug khi loop chạy lâu hoặc kẹt ở tool nào.
-      onStepFinish: (step) => {
-        const names = (step.toolCalls ?? []).map((c) => c.toolName).join(", ");
-        console.log(
-          `[enrichment] step xong: tools=[${names || "suy luận"}] finishReason=${step.finishReason}`
-        );
-      },
-    });
+    generated = await withUserSpan("enrichment.run", spanUserId, () =>
+      generateText({
+        model: provider(modelId),
+        system: SYSTEM_PROMPT,
+        prompt: buildUserPrompt(input.recognized),
+        tools,
+        stopWhen: stepCountIs(MAX_STEPS),
+        maxOutputTokens: 2000,
+        output: Output.object({ schema: enrichmentOutputSchema }),
+        experimental_telemetry: { isEnabled: true },
+        // Log từng step ngay khi xong (thay vì chờ cả loop) — pattern từ
+        // ZCode TurnMachine (phase executing_tools → aggregating_results):
+        // giúp debug khi loop chạy lâu hoặc kẹt ở tool nào.
+        onStepFinish: (step) => {
+          const names = (step.toolCalls ?? []).map((c) => c.toolName).join(", ");
+          console.log(
+            `[enrichment] step xong: tools=[${names || "suy luận"}] finishReason=${step.finishReason}`
+          );
+        },
+      }),
+    );
   } catch (err) {
     throw new Error(
       "Chạy agent làm giàu dữ liệu thất bại: " +
