@@ -1,4 +1,4 @@
-import { Bot, Building2, Cpu, History, Home, Network, PackageSearch, ScanLine, User, Users } from 'lucide-react';
+import { Bot, Building2, Cpu, FileText, History, Home, Network, PackageSearch, ScanLine, User, Users } from 'lucide-react';
 import { z } from 'zod';
 
 import { NavigationConfigSchema } from '@kit/ui/navigation-schema';
@@ -47,6 +47,11 @@ const routes = [
         label: 'common.routes.aiModels',
         path: pathsConfig.app.aiModels,
         Icon: <Cpu className={iconClasses} />,
+      },
+      {
+        label: 'common.routes.aiPrompts',
+        path: pathsConfig.app.aiPrompts,
+        Icon: <FileText className={iconClasses} />,
       },
       {
         label: 'common.routes.auditLog',

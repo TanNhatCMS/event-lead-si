@@ -3,8 +3,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@kit/supabase/database";
 
-import { withUserSpan } from "~/lib/otel/trace";
-
 import type { RecognizedCard } from "~/lib/ai/card-recognition";
 import {
   ENRICHABLE_FIELDS,
@@ -16,7 +14,8 @@ import {
 } from "./types";
 import { buildEnrichmentTools } from "./tools";
 import { getGatewayApiKey, resolveEnrichmentConfig } from "./model-config";
-import { loadEnrichmentMarkdown } from "./load-markdown";
+import { getPrompt } from "../prompts/manager";
+import { getPromptDefault } from "../prompts/defaults";
 
 /**
  * Vòng lặp agent thu thập/bổ sung thông tin từ dữ liệu quét danh thiếp.
@@ -31,10 +30,6 @@ import { loadEnrichmentMarkdown } from "./load-markdown";
  */
 
 const MAX_STEPS = 6;
-
-// System prompt được viết ra file markdown (prompts/system.md) để dễ xem/sửa
-// mà không cần đụng code; nội dung do file quyết định, code chỉ load vào lúc chạy.
-const SYSTEM_PROMPT = loadEnrichmentMarkdown("prompts/system.md");
 
 export class EnrichmentNotConfiguredError extends Error {
   constructor(message: string) {
@@ -175,33 +170,30 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
 
   const provider = createGateway({ apiKey });
   const tools = buildEnrichmentTools();
-  // Giữ giá trị đã narrow trước khi vào closure (TS không narrow qua closure).
-  const modelId = config.model;
-  const spanUserId = input.userId ?? 'unknown';
+  const systemPrompt = input.supabase
+    ? await getPrompt('lead_enrichment', input.userId ?? '', input.supabase)
+    : getPromptDefault('lead_enrichment')?.content ?? '';
 
   let generated;
   try {
-    generated = await withUserSpan("enrichment.run", spanUserId, () =>
-      generateText({
-        model: provider(modelId),
-        system: SYSTEM_PROMPT,
-        prompt: buildUserPrompt(input.recognized),
-        tools,
-        stopWhen: stepCountIs(MAX_STEPS),
-        maxOutputTokens: 2000,
-        output: Output.object({ schema: enrichmentOutputSchema }),
-        experimental_telemetry: { isEnabled: true },
-        // Log từng step ngay khi xong (thay vì chờ cả loop) — pattern từ
-        // ZCode TurnMachine (phase executing_tools → aggregating_results):
-        // giúp debug khi loop chạy lâu hoặc kẹt ở tool nào.
-        onStepFinish: (step) => {
-          const names = (step.toolCalls ?? []).map((c) => c.toolName).join(", ");
-          console.log(
-            `[enrichment] step xong: tools=[${names || "suy luận"}] finishReason=${step.finishReason}`
-          );
-        },
-      }),
-    );
+    generated = await generateText({
+      model: provider(config.model),
+      system: systemPrompt,
+      prompt: buildUserPrompt(input.recognized),
+      tools,
+      stopWhen: stepCountIs(MAX_STEPS),
+      maxOutputTokens: 2000,
+      output: Output.object({ schema: enrichmentOutputSchema }),
+      // Log từng step ngay khi xong (thay vì chờ cả loop) — pattern từ
+      // ZCode TurnMachine (phase executing_tools → aggregating_results):
+      // giúp debug khi loop chạy lâu hoặc kẹt ở tool nào.
+      onStepFinish: (step) => {
+        const names = (step.toolCalls ?? []).map((c) => c.toolName).join(", ");
+        console.log(
+          `[enrichment] step xong: tools=[${names || "suy luận"}] finishReason=${step.finishReason}`
+        );
+      },
+    });
   } catch (err) {
     throw new Error(
       "Chạy agent làm giàu dữ liệu thất bại: " +

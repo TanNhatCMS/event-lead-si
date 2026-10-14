@@ -8,9 +8,9 @@ import { getSupabaseServerClient } from "@kit/supabase/server-client";
 import type { Json } from "@kit/supabase/database";
 
 import { getGatewayApiKey } from "~/lib/ai/enrichment/model-config";
+import { getPrompt } from "~/lib/ai/prompts/manager";
 import { resolveRagChatModel } from "~/lib/ai/rag/config";
 import { type RagCitation } from "~/lib/ai/rag/db-types";
-import { loadRagMarkdown } from "~/lib/ai/rag/load-markdown";
 import { retrieveContext, type RagChunk } from "~/lib/ai/rag/retrieval";
 
 const chatRequestSchema = z.object({
@@ -219,7 +219,7 @@ export async function POST(request: Request) {
     snippet: chunk.content.slice(0, 300),
   }));
 
-  const systemPrompt = loadRagMarkdown("prompts/system.md").replace(
+  const systemPrompt = (await getPrompt('rag_chat', user.id, supabase)).replace(
     "{{CONTEXT}}",
     buildContextText(chunks),
   );

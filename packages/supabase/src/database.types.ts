@@ -138,6 +138,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      ai_prompts: {
+        Row: {
+          content: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_custom: boolean;
+          name: string;
+          prompt_key: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          content: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_custom?: boolean;
+          name: string;
+          prompt_key: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          content?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_custom?: boolean;
+          name?: string;
+          prompt_key?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       business_chunks: {
         Row: {
           content: string;

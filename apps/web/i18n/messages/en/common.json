@@ -58,6 +58,7 @@
   "routes": {
     "account": "Account",
     "aiModels": "AI Models",
+    "aiPrompts": "AI Prompts",
     "application": "Application",
     "billing": "Billing",
     "companies": "Companies",
