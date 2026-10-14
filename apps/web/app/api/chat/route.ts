@@ -12,6 +12,7 @@ import { getPrompt } from "~/lib/ai/prompts/manager";
 import { resolveRagChatModel } from "~/lib/ai/rag/config";
 import { type RagCitation } from "~/lib/ai/rag/db-types";
 import { retrieveContext, type RagChunk } from "~/lib/ai/rag/retrieval";
+import { endSpanError, endSpanOk, startUserSpan } from "~/lib/otel/trace";
 
 const chatRequestSchema = z.object({
   /** null = tạo hội thoại mới. */
@@ -193,11 +194,39 @@ export async function POST(request: Request) {
     );
   }
 
+  // Trace OTel cho chat RAG: span `rag.chat` mở từ trước khi truy xuất context
+  // và chỉ đóng khi stream kết thúc (onFinish) / lỗi (onError) / client ngắt
+  // (abort). Không dùng withUserSpan ở đây vì streamText() của AI SDK là lazy —
+  // withUserSpan sẽ đóng span ngay khi streamText() trả về, trước cả khi model
+  // được gọi. Xem tab "Trace AI" ở /home/nhat-ky.
+  const chatSpan = startUserSpan("rag.chat", user.id, {
+    "rag.conversation_id": conversationId,
+    "rag.model": chatConfig.model,
+    "rag.top_k": topK,
+  });
+  let spanFinished = false;
+  const finishSpanOk = () => {
+    if (!spanFinished) {
+      spanFinished = true;
+      endSpanOk(chatSpan);
+    }
+  };
+  const finishSpanError = (err: unknown) => {
+    if (!spanFinished) {
+      spanFinished = true;
+      endSpanError(chatSpan, err);
+    }
+  };
+  request.signal.addEventListener("abort", () => finishSpanError(new Error("client aborted")), {
+    once: true,
+  });
+
   // Truy xuất context (embed query + RPC match_rag_chunks, lọc theo user).
   let chunks: RagChunk[];
   try {
     ({ chunks } = await retrieveContext(user.id, lastMessage.content, topK));
   } catch (err) {
+    finishSpanError(err);
     return errorResponse(
       "ai_not_configured",
       err instanceof Error ? err.message : "Không truy xuất được ngữ cảnh.",
@@ -205,6 +234,7 @@ export async function POST(request: Request) {
       503,
     );
   }
+  chatSpan.setAttribute("rag.chunks_count", chunks.length);
 
   // Citations theo contracts/rag-api.md: lưu DB (chat_messages.citations)
   // và gửi client qua data part cuối stream.
@@ -230,8 +260,9 @@ export async function POST(request: Request) {
     system: systemPrompt,
     messages: messages.map((m) => ({ role: "user" as const, content: m.content })),
     // Lưu tin nhắn assistant + citations khi stream xong (fire-and-forget,
-    // không chặn stream trả về cho client).
-    onFinish: async ({ text }) => {
+    // không chặn stream trả về cho client). Đồng thời đóng span `rag.chat`
+    // với token usage để tab Trace AI hiển thị đầy đủ.
+    onFinish: async ({ text, usage, finishReason }) => {
       try {
         await supabase.from("chat_messages").insert({
           conversation_id: conversationId,
@@ -243,6 +274,14 @@ export async function POST(request: Request) {
       } catch {
         // Bỏ qua lỗi lưu — câu trả lời đã stream về client.
       }
+      chatSpan.setAttribute("rag.finish_reason", finishReason);
+      chatSpan.setAttribute("rag.citations_count", citations.length);
+      if (usage) {
+        chatSpan.setAttribute("rag.input_tokens", usage.inputTokens ?? 0);
+        chatSpan.setAttribute("rag.output_tokens", usage.outputTokens ?? 0);
+        chatSpan.setAttribute("rag.total_tokens", usage.totalTokens ?? 0);
+      }
+      finishSpanOk();
     },
   });
 
@@ -258,7 +297,10 @@ export async function POST(request: Request) {
         }),
       );
     },
-    onError: () => "Đã xảy ra lỗi khi tạo câu trả lời.",
+    onError: (err) => {
+      finishSpanError(err);
+      return "Đã xảy ra lỗi khi tạo câu trả lời.";
+    },
   });
 
   return createUIMessageStreamResponse({ stream });
