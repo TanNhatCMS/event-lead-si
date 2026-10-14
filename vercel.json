@@ -1,0 +1,1 @@
+{"$schema":"https://openapi.vercel.sh/vercel.json","buildCommand":"pnpm --filter web build","framework":"nextjs","functions":{"apps/web/app/api/**/*.ts":{"maxDuration":60}},"installCommand":"pnpm install --trust-lockfile","outputDirectory":"apps/web/.next","regions":["sin1"]}
