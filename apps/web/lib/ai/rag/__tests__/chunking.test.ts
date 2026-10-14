@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chunkPages } from '../ingest';
+import { chunkPages, getChunkConfig } from '../ingest';
 import type { ExtractedPage } from '../extract';
 
 function page(
@@ -9,6 +9,21 @@ function page(
 ): ExtractedPage {
   return { page_number, sections };
 }
+
+describe('getChunkConfig — adaptive chunking (handbook Phần 12)', () => {
+  it('price_list dùng chunk nhỏ (600) để truy xuất giá chính xác', () => {
+    expect(getChunkConfig('price_list')).toEqual({ size: 600, overlap: 120 });
+  });
+
+  it('contract_template dùng chunk lớn (1500) để giữ ngữ cảnh', () => {
+    expect(getChunkConfig('contract_template')).toEqual({ size: 1500, overlap: 300 });
+  });
+
+  it('loại không xác định dùng config mặc định', () => {
+    expect(getChunkConfig('unknown')).toEqual({ size: 1000, overlap: 200 });
+    expect(getChunkConfig(null)).toEqual({ size: 1000, overlap: 200 });
+  });
+});
 
 describe('chunkPages — tách câu tiếng Việt', () => {
   it('giữ dấu câu cuối câu và không cắt mất section_title', () => {
@@ -66,5 +81,17 @@ describe('chunkPages — tách câu tiếng Việt', () => {
       page(1, [{ section_title: 'Mục 1', text: `${para}\n\n${para}` }]),
     ]);
     chunks.forEach((c, i) => expect(c.chunk_index).toBe(i));
+  });
+
+  it('dùng config tùy chỉnh: price_list chia chunk nhỏ hơn', () => {
+    const para = 'Sản phẩm A giá 100.000đ. '.repeat(30); // ~750 ký tự
+    const pages = [page(1, [{ section_title: null, text: para }])];
+    const small = chunkPages(pages, getChunkConfig('price_list'));
+    const large = chunkPages(pages, getChunkConfig('contract_template'));
+    // Cùng text, chunk nhỏ tạo nhiều chunk hơn.
+    expect(small.length).toBeGreaterThan(large.length);
+    for (const c of small) {
+      expect(c.content.length).toBeLessThanOrEqual(650);
+    }
   });
 });

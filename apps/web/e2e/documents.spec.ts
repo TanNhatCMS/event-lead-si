@@ -85,4 +85,27 @@ test.describe('API /api/knowledge/documents', () => {
 
     await ctx.dispose();
   });
+
+  test('xem chunks: chưa đăng nhập → 401', async ({ request }) => {
+    const res = await request.get(
+      '/api/knowledge/documents/00000000-0000-0000-0000-000000000000/chunks',
+    );
+    expect(res.status()).toBe(401);
+  });
+
+  test('reingest: chưa đăng nhập → 401', async ({ request }) => {
+    const res = await request.post(
+      '/api/knowledge/documents/00000000-0000-0000-0000-000000000000/reingest',
+    );
+    expect(res.status()).toBe(401);
+  });
+
+  test('chunks với id không hợp lệ → 400', async () => {
+    test.skip(!HAS_AUTH, 'cần E2E_AUTH_EMAIL/PASSWORD');
+    const { ctx, ok } = await authedContext();
+    test.skip(!ok, 'đăng nhập thất bại');
+    const res = await ctx.get('/api/knowledge/documents/not-a-uuid/chunks');
+    expect(res.status()).toBe(400);
+    await ctx.dispose();
+  });
 });

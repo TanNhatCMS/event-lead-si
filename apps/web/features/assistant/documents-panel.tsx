@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
+  Eye,
   FileText,
   Loader2,
+  RefreshCw,
   ScanSearch,
   Trash2,
   UploadCloud,
@@ -24,6 +26,13 @@ import {
 import { Badge } from '@kit/ui/badge';
 import { Button, buttonVariants } from '@kit/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@kit/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@kit/ui/dialog';
 import { Input } from '@kit/ui/input';
 import { Label } from '@kit/ui/label';
 import {
@@ -56,6 +65,13 @@ type RagDocument = {
   error_message: string | null;
   chunk_count: number | null;
   created_at: string;
+};
+
+type RagChunk = {
+  chunk_index: number;
+  page_number: number | null;
+  section_title: string | null;
+  content: string;
 };
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
@@ -143,6 +159,13 @@ export function DocumentsPanel() {
   const [formError, setFormError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reingestingId, setReingestingId] = useState<string | null>(null);
+
+  // Dialog xem chunks.
+  const [chunksDoc, setChunksDoc] = useState<RagDocument | null>(null);
+  const [chunks, setChunks] = useState<RagChunk[]>([]);
+  const [chunksLoading, setChunksLoading] = useState(false);
+  const [chunksError, setChunksError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -288,6 +311,49 @@ export function DocumentsPanel() {
     },
     [],
   );
+
+  const handleReingest = useCallback(
+    async (id: string) => {
+      setReingestingId(id);
+      try {
+        const res = await fetch(`/api/knowledge/documents/${id}/reingest`, {
+          method: 'POST',
+        });
+        const body = await res.json();
+        if (!res.ok) {
+          setListError(body?.message ?? 'Yêu cầu xử lý lại thất bại.');
+          return;
+        }
+        // Refresh ngay; polling sẽ theo dõi trạng thái processing.
+        await fetchDocuments();
+      } catch {
+        setListError('Yêu cầu xử lý lại thất bại, vui lòng thử lại.');
+      } finally {
+        setReingestingId(null);
+      }
+    },
+    [fetchDocuments],
+  );
+
+  const openChunks = useCallback(async (doc: RagDocument) => {
+    setChunksDoc(doc);
+    setChunks([]);
+    setChunksError(null);
+    setChunksLoading(true);
+    try {
+      const res = await fetch(`/api/knowledge/documents/${doc.id}/chunks`);
+      const body = await res.json();
+      if (!res.ok) {
+        setChunksError(body?.message ?? 'Không tải được danh sách chunks.');
+        return;
+      }
+      setChunks((body.items ?? []) as RagChunk[]);
+    } catch {
+      setChunksError('Không tải được danh sách chunks, vui lòng thử lại.');
+    } finally {
+      setChunksLoading(false);
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -454,6 +520,36 @@ export function DocumentsPanel() {
                         </p>
                       )}
                     </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {doc.status === 'ready' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-foreground"
+                          aria-label={`Xem chunks của ${doc.file_name}`}
+                          title="Xem cách tài liệu được chia chunk"
+                          onClick={() => openChunks(doc)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {(doc.status === 'failed' || doc.status === 'needs_ocr') && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-foreground"
+                          aria-label={`Xử lý lại ${doc.file_name}`}
+                          title="Xử lý lại tài liệu"
+                          onClick={() => handleReingest(doc.id)}
+                          disabled={reingestingId === doc.id}
+                        >
+                          {reingestingId === doc.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
                     <AlertDialog>
                       <AlertDialogTrigger
                         className={cn(
@@ -490,6 +586,7 @@ export function DocumentsPanel() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+                    </div>
                   </li>
                 );
               })}
@@ -497,6 +594,54 @@ export function DocumentsPanel() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog xem chunks */}
+      <Dialog open={chunksDoc !== null} onOpenChange={(open) => !open && setChunksDoc(null)}>
+        <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Chunks của “{chunksDoc?.file_name}”
+            </DialogTitle>
+            <DialogDescription>
+              Cách tài liệu được chia nhỏ để index — mỗi chunk kèm số trang /
+              tiêu đề mục dùng làm trích dẫn (QĐ3).
+            </DialogDescription>
+          </DialogHeader>
+          {chunksLoading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Đang tải chunks…
+            </div>
+          ) : chunksError ? (
+            <p role="alert" className="flex items-center gap-1.5 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {chunksError}
+            </p>
+          ) : chunks.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Chưa có chunk nào.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {chunks.map((chunk) => (
+                <li key={chunk.chunk_index} className="rounded-lg border p-3">
+                  <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="secondary">#{chunk.chunk_index + 1}</Badge>
+                    {chunk.page_number !== null && (
+                      <span>Trang {chunk.page_number}</span>
+                    )}
+                    {chunk.section_title && <span>· {chunk.section_title}</span>}
+                    <span>· {chunk.content.length} ký tự</span>
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {chunk.content}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
