@@ -77,7 +77,6 @@ Database: apply các migration trong `apps/web/supabase/migrations/` lên Supaba
 4. `20261014030000_audit_logs.sql`
 5. `20261014040000_otel_spans.sql`
 6. `20261014050000_rag_chatbot.sql` — schema RAG (documents, chunks, queue, chat)
-7. `20261014060000_ai_prompts.sql` — bảng prompts AI tùy chỉnh qua UI
 
 Sau khi apply: regenerate Supabase types (`packages/supabase/src/database.types.ts`).
 
@@ -102,6 +101,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=dummy ./node_modules/.bin/next build
   Không tự động gửi bất cứ thứ gì ra ngoài.
 - **Secrets**: service-role key và API keys chỉ dùng phía server, không bao giờ
   đưa ra client hay commit vào repo.
+
+## Tài liệu
+
+- [Mô tả dự án](docs/mo-ta-du-an.md) — tổng quan, tính năng, kiến trúc
+- [Hướng dẫn deploy Vercel](docs/huong-dan-deploy.md) — từng bước đưa lên production
+- [Sổ tay RAG](docs/rag-handbook-viet-tay.md) — tham khảo kiến thức RAG/LLM
 
 ## Giấy phép
 
