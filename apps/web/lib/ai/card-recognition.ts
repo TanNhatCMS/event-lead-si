@@ -24,7 +24,12 @@ export type RecognizedCard = z.infer<typeof recognizedCardSchema>;
 
 export interface CardRecognitionProvider {
   readonly name: string;
-  recognize(input: { image: Uint8Array; mediaType: string }): Promise<RecognizedCard>;
+  recognize(input: {
+    image: Uint8Array;
+    mediaType: string;
+    userId?: string;
+    supabase?: unknown;
+  }): Promise<RecognizedCard>;
 }
 
 export function isCardRecognitionEnabled() {

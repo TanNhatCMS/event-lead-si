@@ -6,11 +6,12 @@ import { createGateway, generateText, Output } from 'ai';
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { getPrompt } from '~/lib/ai/prompts/manager';
+
 import {
   getAiModelConfig,
   getGatewayApiKey,
 } from '~/lib/ai/enrichment/model-config';
-import { withUserSpan } from '~/lib/otel/trace';
 
 const bodySchema = z.object({
   request_id: z.string().uuid('Mã yêu cầu không hợp lệ.'),
@@ -31,17 +32,6 @@ const suggestionSchema = z.object({
 function errorJson(requestId: string, code: string, message: string, status: number) {
   return NextResponse.json({ code, message, request_id: requestId }, { status });
 }
-
-const SYSTEM_PROMPT = `Bạn là trợ lý sourcing B2B tại Việt Nam.
-Nhiệm vụ: dựa trên yêu cầu tìm nhà cung cấp và DANH BẠ có sẵn của người dùng,
-gợi ý các ứng viên phù hợp nhất.
-
-Nguyên tắc:
-- Chỉ gợi ý từ danh bạ được cung cấp (contacts/companies). Không bịa ứng viên ngoài danh bạ.
-- Mỗi gợi ý kèm lý do cụ thể: khớp tiêu chí nào, bằng chứng nào (chức danh, công ty, lĩnh vực, ghi chú).
-- confidence: mức phù hợp 0..1 so với tiêu chí.
-- Tối đa 5 gợi ý, sắp xếp theo độ phù hợp giảm dần.
-- Trả về đúng schema JSON, không thêm giải thích.`;
 
 /**
  * POST /api/sourcing/suggest
@@ -134,16 +124,13 @@ export async function POST(request: Request) {
 
   try {
     const provider = createGateway({ apiKey });
-    const generated = await withUserSpan('sourcing.suggest', user.id, () =>
-      generateText({
-        model: provider(model),
-        system: SYSTEM_PROMPT,
-        prompt,
-        output: Output.object({ schema: suggestionSchema }),
-        maxOutputTokens: 2000,
-        experimental_telemetry: { isEnabled: true },
-      }),
-    );
+    const generated = await generateText({
+      model: provider(model),
+      system: await getPrompt('sourcing_suggest', user.id, supabase),
+      prompt,
+      output: Output.object({ schema: suggestionSchema }),
+      maxOutputTokens: 2000,
+    });
     return NextResponse.json({
       suggestions: generated.output?.suggestions ?? [],
       model_used: `${dbConfig ? 'database' : 'env'}:${model}`,

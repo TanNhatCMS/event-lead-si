@@ -8,6 +8,7 @@ import type {
   RecognizedCard,
 } from "./card-recognition";
 import { getGatewayApiKey } from "./enrichment/model-config";
+import { getPrompt } from "./prompts/manager";
 
 /**
  * Provider nhận dạng danh thiếp bằng MODEL AI CÓ KHẢ NĂNG XEM ẢNH (vision),
@@ -52,16 +53,6 @@ const visionOutputSchema = z.object({
     website: visionFieldSchema,
   }),
 });
-
-const SYSTEM_PROMPT = `Bạn trích xuất thông tin liên hệ từ ảnh danh thiếp (business card).
-
-Nguyên tắc bắt buộc:
-- Chỉ trích xuất những gì NHÌN THẤY RÕ trên ảnh. Không đoán, không bịa, không tự điền.
-- Trường nào không có trên ảnh: value = null, confidence = 0.
-- confidence: 1.0 = đọc chắc chắn; 0.5-0.8 = đọc được nhưng mờ/nghi ngờ (ví dụ ký tự dễ nhầm như 0/O, 1/l); dưới 0.5 = không chắc.
-- Giữ nguyên giá trị như trên ảnh (kể cả viết hoa, dấu câu). Không chuẩn hóa SĐT hay địa chỉ.
-- detectedLanguage: ngôn ngữ chính của danh thiếp (vi/en/ko/ja/zh/unknown).
-- Trả về đúng schema JSON được yêu cầu, không thêm giải thích.`;
 
 const USER_PROMPT =
   "Trích xuất 7 trường (họ tên, chức danh, công ty, email, điện thoại, địa chỉ, website) từ ảnh danh thiếp này.";
@@ -110,6 +101,8 @@ export class VisionCardRecognitionProvider implements CardRecognitionProvider {
   async recognize(input: {
     image: Uint8Array;
     mediaType: string;
+    userId?: string;
+    supabase?: unknown;
   }): Promise<RecognizedCard> {
     if (!input.image || input.image.length === 0) {
       throw new Error("Ảnh trống, không thể nhận dạng.");
@@ -129,11 +122,20 @@ export class VisionCardRecognitionProvider implements CardRecognitionProvider {
 
     const provider = createGateway({ apiKey });
 
+    const systemPrompt =
+      input.userId && input.supabase
+        ? await getPrompt(
+            'card_recognize',
+            input.userId,
+            input.supabase as import('@supabase/supabase-js').SupabaseClient<import('@kit/supabase/database').Database>,
+          )
+        : (await import('./prompts/defaults')).getPromptDefault('card_recognize')?.content ?? '';
+
     let generated;
     try {
       generated = await generateText({
         model: provider(this.model),
-        system: SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: [
           {
             role: "user",
@@ -145,7 +147,6 @@ export class VisionCardRecognitionProvider implements CardRecognitionProvider {
         ],
         output: Output.object({ schema: visionOutputSchema }),
         maxOutputTokens: 1500,
-        experimental_telemetry: { isEnabled: true },
       });
     } catch (err) {
       throw new Error(
