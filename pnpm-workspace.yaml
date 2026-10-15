@@ -67,7 +67,7 @@ catalog:
   vitest: 5.0.4
   "@e965/xlsx": 0.20.3
   xlsx: 0.18.5
-  zod: 4.4.3
+  zod: 4.6.7
 allowBuilds:
   '@tailwindcss/oxide': true
   'supabase': true
