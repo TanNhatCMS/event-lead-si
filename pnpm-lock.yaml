@@ -123,6 +123,9 @@ catalogs:
     oxfmt:
       specifier: ^0.61.0
       version: 0.61.0
+    oxlint:
+      specifier: ^1.76.0
+      version: 1.88.0
     pino:
       specifier: ^10.0.0
       version: 10.3.1
@@ -145,8 +148,8 @@ catalogs:
       specifier: 5.5.7
       version: 5.5.7
     react-resizable-panels:
-      specifier: 4.12.2
-      version: 4.12.2
+      specifier: 4.14.5
+      version: 4.14.5
     react-top-loading-bar:
       specifier: 3.0.2
       version: 3.0.2
@@ -651,7 +654,7 @@ importers:
         version: 15.0.0(react@19.2.8)
       react-resizable-panels:
         specifier: 'catalog:'
-        version: 4.12.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 4.14.5(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-top-loading-bar:
         specifier: 'catalog:'
         version: 3.0.2(react@19.2.8)
@@ -4712,8 +4715,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-resizable-panels@4.12.2:
-    resolution: {integrity: sha512-NwY5LCo4WrxVvDh0xoMML6EMLPONP/8ckKcIdpnojxexoatZdjLiRqLJQjQK5CPkd4SYiB/2M5BVrjZBQtOO7Q==}
+  react-resizable-panels@4.14.5:
+    resolution: {integrity: sha512-AoHgoq3sGOfciPn2ahddFrBCqsitZLse8cJIYWblvE3kQ9z39IrhdlHCjnVRrDL8XcWqvA0u/t9nLZTfWePJ5A==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -8652,7 +8655,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
-  react-resizable-panels@4.12.2(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  react-resizable-panels@4.14.5(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
