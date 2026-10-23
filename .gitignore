@@ -51,3 +51,4 @@ apps/web/.output/
 .contentlayer/
 # prds
 .prds/
+/.pnpm-store
