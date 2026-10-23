@@ -57,13 +57,6 @@ function formatDateTime(iso: string) {
   });
 }
 
-function toDateInput(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 /**
  * Ghi chú cuộc gặp: thêm/sửa/xóa, đánh dấu việc cần làm đã xong,
  * và AI soạn nháp tin nhắn follow-up (người dùng quyết định dùng hay không).
