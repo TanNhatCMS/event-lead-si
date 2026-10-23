@@ -66,6 +66,7 @@
     "recharts": "catalog:",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:",
+    "workflow": "catalog:",
     "xlsx": "catalog:",
     "zod": "catalog:"
   },

@@ -37,6 +37,7 @@ catalog:
   lucide-react: ^1.28.0
   nanoid: ^6.0.0
   next: 16.3.8
+  workflow: 5.2.3
   next-intl: ^4.13.4
   next-safe-action: 8.7.3
   next-sitemap: ^4.2.3
@@ -75,6 +76,7 @@ allowBuilds:
   '@swc/core': true
   'esbuild': true
   'sharp': true
+  'cbor-extract': true
 minimumReleaseAgeExclude:
   - '@ai-sdk/react@4.0.142'
   - '@ai-sdk/gateway@4.0.112'
