@@ -1,4 +1,5 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import { withWorkflow } from 'workflow/next';
 
 // Create the next-intl plugin with the request config path
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
@@ -75,7 +76,7 @@ const config = {
   typescript: { ignoreBuildErrors: true },
 };
 
-export default withNextIntl(config);
+export default withWorkflow(withNextIntl(config));
 
 function getRemotePatterns() {
   /** @type {import('next').NextConfig['remotePatterns']} */
