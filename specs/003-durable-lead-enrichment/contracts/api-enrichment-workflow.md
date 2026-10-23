@@ -91,15 +91,21 @@ lần chạy, không thuộc về request tra cứu.
 
 ### Quyền sở hữu
 
-v1 (hệ thống single-user) — **đã chốt theo phương án (a)** (spec FR-015 bản đã sửa
-ở vòng sửa audit 2026-10-23, quyết định D5 ở `plan.md` §6): chỉ yêu cầu đã đăng
-nhập; v1 không lưu mapping run→user và không kiểm tra run thuộc về đúng người
-dùng nào khi tra cứu. Hệ quả được chấp nhận tường minh ở v1: tài khoản đã đăng
-nhập khác, nếu biết `runId`, tra cứu được lần chạy đó — chỉ chấp nhận được vì
-triển khai hiện tại là single-user. Client không được hiển thị `runId` cho bên
-thứ ba; `runId` do SDK sinh, khó đoán. Khi hệ thống chuyển đa người dùng, contract
-này phải được sửa trước khi mở: tra cứu lệch sở hữu trả 404/403, kèm kiểm thử
-chéo 2 tài khoản (điều kiện bắt buộc tại FR-015).
+**Phương án (b)** — quyết định cuối của người dùng tại cổng T014 ngày
+2026-10-24 (spec FR-015, quyết định D5 ở `plan.md` §6; thay phương án (a)
+từng chốt ở vòng sửa audit 2026-10-23):
+
+- Route start, ngay sau khi tạo run thành công, **lưu mapping `runId` →
+  `userId`** vào bảng `enrichment_runs`. Nếu không lưu được mapping, start
+  trả **HTTP 500 `run_tracking_failed`** thay vì 201 — không phát hành
+  `runId` mà không ai tra cứu được.
+- Route tra cứu kiểm tra sở hữu **trước** khi hỏi SDK: chưa đăng nhập →
+  401; không có mapping **hoặc mapping thuộc người dùng khác** → **HTTP
+  404 `run_not_found`** (cùng mã với run không tồn tại — không lộ sự tồn
+  tại của run của người khác; chọn 404 trong khoảng 404/403 mà spec cho
+  phép). Lỗi đọc bảng mapping → 500 `run_lookup_failed`.
+- Hệ quả tương thích: các run tạo **trước** khi cơ chế này có hiệu lực
+  không có mapping → tra cứu trả 404 cho mọi tài khoản (kể cả chủ run).
 
 ---
 

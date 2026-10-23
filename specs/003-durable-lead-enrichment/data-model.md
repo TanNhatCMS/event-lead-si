@@ -11,7 +11,7 @@ các kiểu dữ liệu enrichment hiện có.
 
 | Thuộc tính | Kiểu | Mô tả / ràng buộc |
 |---|---|---|
-| `runId` | string (SDK sinh) | Định danh duy nhất của lần chạy, trả cho người dùng ngay khi start (FR-002). Khó đoán; là căn cứ tra cứu duy nhất ở v1 theo quyết định đã chốt D5 / phương án (a) ở spec FR-015 (v1 single-user không lưu mapping run→user — xem ràng buộc ở cuối file). |
+| `runId` | string (SDK sinh) | Định danh duy nhất của lần chạy, trả cho người dùng ngay khi start (FR-002). Khó đoán. Theo quyết định cuối D5 / phương án (b) (người dùng, cổng T014 ngày 2026-10-24), `runId` được lưu kèm `user_id` vào bảng `enrichment_runs` tại thời điểm start và tra cứu bắt buộc khớp sở hữu — xem ràng buộc ở cuối file. |
 | `status` | SDK: `pending`/`running`/`completed`/`failed`/… → API của app: `running` / `completed` / `failed` | Ánh xạ theo FR-007 — xem `contracts/api-enrichment-workflow.md`. |
 | `input.recognized` | `RecognizedCard` (schema hiện có `recognizedCardSchema`, `~/lib/ai/card-recognition`) | Bản **chốt tại thời điểm start** (FR-014): hoặc client gửi kèm (`recognized`/`fields`), hoặc hệ thống đọc từ `card_imports.recognition_result` của đúng `user_id` rồi chốt. Thay đổi sau đó của bản ghi gốc không ảnh hưởng run. Được ghi vào event log của World — phải serialize được (plain JSON, thoả). |
 | `input.userId` | string (uuid người dùng đã xác thực) | Lấy từ phiên đăng nhập tại start, **không** lấy từ body. Dùng trong step để đọc cấu hình model của đúng người dùng. |
@@ -42,11 +42,15 @@ thực thi lại; kết quả tra cứu lại được nguyên vẹn (FR-005).
 - **Không thực thể đích nào bị ghi**: run hoàn thành **không** tạo/cập nhật contact,
   không cập nhật `card_imports` (FR-012, hiến chương II). Dữ liệu liên hệ chỉ đổi
   qua thao tác Áp dụng hiện có trên UI, ngoài phạm vi của run.
-- **Không quan hệ DB mới ở v1**: `runId` không được lưu vào bất kỳ bảng nào của app
-  trong v1 — đây là quyết định **đã chốt** D5 theo **phương án (a)** (`plan.md` §6,
-  spec FR-015 bản đã sửa ở vòng audit 2026-10-23: ngoại lệ v1 tường minh cho hệ
-  single-user), không phải điểm chờ chốt. **Điều kiện bắt buộc khi chuyển đa
-  người dùng**: trước khi mở đa người dùng phải bổ sung bảng mapping
-  `enrichment_runs(run_id, user_id, created_at)` bằng một migration có phiên bản
-  như hiến chương yêu cầu, ghi mapping tại thời điểm start, kiểm tra sở hữu khi
-  tra cứu (lệch → 404/403) và có kiểm thử chéo 2 tài khoản.
+- **Một quan hệ DB mới duy nhất ở v1 — bảng mapping sở hữu lần chạy** (quyết
+  định cuối D5 phương án (b) của người dùng tại cổng T014 ngày 2026-10-24,
+  thay cho bản "không lưu mapping" của phương án (a) trước đó):
+  `enrichment_runs(run_id text PK, user_id uuid → auth.users, created_at
+  timestamptz)` qua migration có phiên bản
+  `apps/web/supabase/migrations/20261024053000_enrichment_runs.sql`. Ghi
+  mapping tại thời điểm start (bằng server admin client; không ghi được →
+  start trả lỗi, không phát hành `runId` câm); tra cứu kiểm tra sở hữu trước
+  (lệch → 404). RLS bật, không policy cho `authenticated` — chỉ service-role
+  truy cập kèm so `user_id` trong code. Bảng này **không** chứa dữ liệu
+  nghiệp vụ của lần chạy (input/kết quả vẫn thuộc về World), chỉ là quan hệ
+  sở hữu tối thiểu để thực thi FR-015.

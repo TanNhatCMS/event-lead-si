@@ -3,10 +3,12 @@ import 'server-only';
 import { NextResponse } from "next/server";
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
+import { getSupabaseServerAdminClient } from '@kit/supabase/server-admin-client';
 
 import { getRun } from "workflow/api";
 import { WorkflowRunFailedError, WorkflowRunNotFoundError } from "workflow/errors";
 
+import { checkRunOwnership } from "~/lib/ai/enrichment/run-ownership";
 import type { EnrichmentResult } from "~/lib/ai/enrichment/types";
 
 type RouteContext = { params: Promise<{ runId: string }> };
@@ -72,9 +74,12 @@ function extractFailedMessage(err: WorkflowRunFailedError, runId: string): strin
  * workflow). Ánh xạ trạng thái SDK → API theo contract §2 của
  * specs/003-durable-lead-enrichment.
  *
- * Quyết định D5 / FR-015 phương án (a) — v1: chỉ yêu cầu đăng nhập +
- * runId khó đoán, KHÔNG kiểm tra sở hữu, KHÔNG lưu bảng mapping
- * run→user, KHÔNG migration.
+ * Quyết định cuối D5 / FR-015 — phương án (b) (người dùng chốt tại cổng
+ * T014 ngày 2026-10-24, thay phương án (a) trước đó): ngoài yêu cầu đăng
+ * nhập, route kiểm tra **sở hữu** run qua bảng `enrichment_runs` TRƯỚC
+ * khi hỏi SDK. Không có mapping hoặc run thuộc người dùng khác → cùng
+ * 404 `run_not_found` (không lộ sự tồn tại của run của người khác);
+ * lỗi đọc bảng mapping → 500 `run_lookup_failed`.
  */
 export async function GET(_request: Request, { params }: RouteContext) {
   const requestId = crypto.randomUUID();
@@ -86,6 +91,16 @@ export async function GET(_request: Request, { params }: RouteContext) {
   } = await supabase.auth.getUser();
 
   if (!user) return unauthorized(requestId);
+
+  const ownership = await checkRunOwnership(
+    getSupabaseServerAdminClient(),
+    runId,
+    user.id,
+  );
+  if (ownership === "not_found" || ownership === "forbidden") {
+    return runNotFound(requestId);
+  }
+  if (ownership === "unavailable") return runLookupFailed(requestId);
 
   try {
     // SDK 5.2.3 (đã kiểm chứng trong node_modules): getRun là hàm ĐỒNG BỘ

@@ -127,13 +127,14 @@ Chi tiết contract: `contracts/api-enrichment-workflow.md`. Nguyên tắc chín
   mọi trạng thái chưa kết thúc khác) → `running`; `completed` → `completed` kèm
   `result` = `await run.returnValue`; `failed` → `failed` kèm `error` mô tả lỗi
   (FR-009). Xem bảng ánh xạ đầy đủ trong contract.
-- **Ownership ở v1 — đã chốt phương án (a) (spec FR-015, §6 D5)**: không ghi
-  ownership vào DB trong v1, không lưu mapping run→user, không kiểm tra sở hữu
-  theo từng run. GET chỉ yêu cầu đã đăng nhập (401 nếu chưa) và dựa vào `runId`
-  khó đoán do SDK sinh. Đây là ngoại lệ v1 tường minh cho hệ single-user đã ghi
-  trong spec — không phải hướng yếu hơn spec. Khi chuyển đa người dùng phải bổ
-  sung mapping + kiểm tra sở hữu (404/403 khi lệch) + test chéo 2 tài khoản
-  trước khi mở (điều kiện bắt buộc ghi tại FR-015).
+- **Ownership ở v1 — phương án (b) theo quyết định cuối của người dùng tại
+  cổng T014 ngày 2026-10-24 (spec FR-015, §6 D5)**: ghi mapping run→user vào
+  bảng `enrichment_runs` (migration `20261024053000_enrichment_runs.sql`)
+  ngay khi start; GET kiểm tra sở hữu trước khi hỏi SDK — lệch sở hữu hoặc
+  không tồn tại → 404 `run_not_found`; không lưu được mapping lúc start →
+  500 `run_tracking_failed` (không phát hành `runId` câm). Truy cập bảng
+  bằng server admin client + so `userId` trong code (RLS bật, không policy
+  cho `authenticated`). Kèm test chéo 2 tài khoản ở mức unit (T015/T016).
 
 ## 6. Quyết định kỹ thuật (D4/D5 đã chốt ở vòng sửa audit 2026-10-23, ghi vào spec; xác nhận cuối của người dùng là cổng chặn merge ở T014)
 
@@ -143,7 +144,7 @@ Chi tiết contract: `contracts/api-enrichment-workflow.md`. Nguyên tắc chín
 | D2 | Đơn vị bền vững = 1 step bọc toàn bộ `runEnrichmentLoop`; không tách step theo vòng lặp nội bộ. | Đã chốt (spec, làm rõ #2) |
 | D3 | Retry: dùng mặc định SDK (tối đa 3 lần retry sau lần đầu — tổng tối đa 4 lần thực thi step; quyết định diễn giải §8.1) + `FatalError` cho lỗi cấu hình. Không backoff tuỳ chỉnh trong v1. **Không dùng khoảng thời gian giữa các lần thử hay thời gian kết thúc làm bằng chứng retry** (lịch backoff mặc định của SDK không phải cam kết kiểm thử) — bằng chứng là **số lần thực thi step** đếm được qua observability/cơ chế ép lỗi xác định ở §8. | Đã chốt |
 | D4 | `start-not-configured` (FR-001): route start chạy `checkEnrichmentConfigured` đồng bộ trước khi `start()` và trả **503 `enrichment_not_configured`** ngay (gương route `/run`) — không tạo run. Phương án thay thế (tạo run rồi để step fail bằng FatalError) bị loại vì khiến người dùng phải poll mới biết lỗi cấu hình, trái "từ chối ngay tại khởi chạy" của FR-001. | **Đã chốt** ở vòng sửa audit 2026-10-23 và đã ghi vào spec FR-001. Xác nhận cuối của người dùng tại cổng merge T014 (cổng cứng — xem §8/T014). |
-| D5 | `run-ownership-enforcement` (FR-015): **phương án (a)** — hệ thống single-user: chỉ yêu cầu đã đăng nhập (401 nếu chưa) + `runId` là định danh khó đoán do SDK sinh; không lưu bảng mapping run→user, không kiểm tra sở hữu theo từng run ở v1. Rủi ro còn lại (tài khoản đăng nhập khác biết `runId` thì poll được) được chấp nhận tường minh ở v1 vì triển khai là single-user và đã ghi thành ngoại lệ trong spec FR-015. Khi đa người dùng: bắt buộc lưu mapping, so `userId` khi tra cứu (lệch → 404/403) và test chéo 2 tài khoản trước khi mở. | **Đã chốt phương án (a)** ở vòng sửa audit 2026-10-23 và đã ghi vào spec FR-015 (đã xoá điểm chờ làm rõ). Xác nhận cuối của người dùng tại cổng merge T014 (cổng cứng). |
+| D5 | `run-ownership-enforcement` (FR-015): **phương án (b)** — lưu mapping run→user vào bảng `enrichment_runs` khi start; tra cứu so `userId` của phiên, lệch sở hữu/không tồn tại → 404 `run_not_found`; kèm kiểm thử chéo 2 tài khoản. | Phương án (a) từng chốt ở vòng sửa audit 2026-10-23 đã bị **người dùng bác tại cổng T014 ngày 2026-10-24**; quyết định cuối = phương án (b) ngay trong v1. Spec FR-015, data-model và contract đã sửa nhất quán; code làm lại tại T015. D4 được người dùng **xác nhận giữ nguyên** cùng ngày. |
 | D6 | Phần FE (Câu chuyện 7): **gộp trong v1 ở mức tối thiểu** (xem §7) vì điểm chạm nhỏ và nằm trọn trong 1 component hiện có; nếu khi code phát sinh rủi ro (xung đột state của panel, vòng poll phức tạp) thì tách follow-up — lõi BE nghiệm thu độc lập. | Đề xuất — BE/QA không phụ thuộc |
 
 ## 7. Phân vai cho đội dev (làm song song)

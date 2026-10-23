@@ -4,10 +4,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
+import { getSupabaseServerAdminClient } from '@kit/supabase/server-admin-client';
 
 import { recognizedCardSchema, type RecognizedCard } from "~/lib/ai/card-recognition";
 import { ENRICHABLE_FIELDS } from "~/lib/ai/enrichment/types";
 import { checkEnrichmentConfigured } from "~/lib/ai/enrichment/loop";
+import { recordRunOwner } from "~/lib/ai/enrichment/run-ownership";
 import { start } from "workflow/api";
 import { enrichLeadWorkflow } from "~/lib/ai/enrichment/workflow";
 
@@ -147,5 +149,29 @@ export async function POST(request: Request) {
   }
 
   const run = await start(enrichLeadWorkflow, [recognized, user.id]);
+
+  // Sở hữu lần chạy — quyết định cuối D5 phương án (b) (FR-015): ghi
+  // mapping run→user ngay khi start để route tra cứu kiểm tra được sở
+  // hữu. Không ghi được mapping (vd migration 20261024053000 chưa áp
+  // dụng) thì trả 500 thay vì phát hành một runId không ai tra cứu
+  // được — run vẫn chạy nền nhưng bị coi là không tồn tại khi tra cứu
+  // (fail-closed, xem run-ownership.ts).
+  const recorded = await recordRunOwner(
+    getSupabaseServerAdminClient(),
+    run.runId,
+    user.id,
+  );
+  if (!recorded) {
+    return NextResponse.json(
+      {
+        code: "run_tracking_failed",
+        message:
+          "Đã khởi chạy nhưng không lưu được thông tin lần chạy để tra cứu, vui lòng thử lại sau.",
+        request_id: requestId,
+      },
+      { status: 500 },
+    );
+  }
+
   return NextResponse.json({ runId: run.runId, request_id: requestId }, { status: 201 });
 }

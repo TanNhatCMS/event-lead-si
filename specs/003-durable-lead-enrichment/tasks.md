@@ -209,3 +209,24 @@ T008 [P, theo contract] ──► (kiểm chứng qua T014)
 - Song song ngay từ đầu: T003 và T008 (FE theo contract) chạy cùng lúc với BE T001→T004.
 - Cổng cứng: T007 pass mới bắt đầu Giai đoạn 5; T011 và T012 chạy **tuần tự** (cùng can thiệp tiến trình/cấu hình của app dev).
 - Ngoài phạm vi của bộ task này (đúng spec/plan §11): batch nhiều lead, lịch tự động, huỷ run, thông báo đẩy, UI quản trị runs, chốt hạ tầng production (QĐ-MỞ-001), áp cơ chế durable cho luồng khác.
+
+---
+
+## Bổ sung 2026-10-24 — Quyết định cuối tại cổng T014: D4 xác nhận, D5 chuyển phương án (b)
+
+Người dùng quyết định tại PR #92 ngày 2026-10-24: **giữ D4** (FR-001 như đã chốt) và **bác D5 phương án (a)** → làm lại phần sở hữu theo **phương án (b)** đúng như nhánh dự phòng đã ghi ở T006/T014. Hai task bổ sung:
+
+### T015 — [BE] D5 phương án (b): lưu mapping run→user + kiểm tra sở hữu khi tra cứu
+
+- Migration `apps/web/supabase/migrations/20261024053000_enrichment_runs.sql`: bảng `enrichment_runs(run_id text PK, user_id uuid → auth.users on delete cascade, created_at timestamptz default now())`, index theo `user_id`, bật RLS không policy cho `authenticated` (chỉ service-role truy cập).
+- Helper `apps/web/lib/ai/enrichment/run-ownership.ts`: `recordRunOwner` + `checkRunOwnership` (owner / not_found / forbidden / unavailable), nhận client qua tham số để test được bằng client giả.
+- Route start (T005): sau `start()` thành công, ghi mapping bằng server admin client; ghi thất bại → **500 `run_tracking_failed`**, không trả 201.
+- Route tra cứu (T006 làm lại phần sở hữu): kiểm tra sở hữu **trước** `getRun` — not_found/forbidden → **404 `run_not_found`**; lỗi đọc bảng → 500 `run_lookup_failed`. Phần ánh xạ trạng thái SDK giữ nguyên.
+- Cập nhật nhất quán: spec FR-015 + mục quyết định cuối, plan §5/§6 (D5), data-model, contract §2 (mục Quyền sở hữu).
+
+- **Kiểm tra xong**: typecheck exit 0; unit test ở T016 pass; `next build` pass (env dummy). Migration áp dụng qua SQL Editor cùng đợt các migration còn chờ (issue #35/#36) — trước khi áp dụng, route start trả 500 `run_tracking_failed` (fail-closed, đúng thiết kế).
+
+### T016 — [QA] Kiểm thử chéo 2 tài khoản cho logic sở hữu (mức unit)
+
+- Test `run-ownership.test.ts` bằng Supabase client giả (không cần Supabase thật): ghi mapping thành công/thất bại; tra cứu đúng chủ → owner; tài khoản khác → forbidden; run không tồn tại → not_found; lỗi DB → unavailable. Đây là bản unit của kịch bản chéo 2 tài khoản mà T014 yêu cầu cho phương án (b).
+- Kiểm thử chéo **chạy thật** 2 tài khoản trên Supabase cloud vẫn thuộc phần nghiệm thu còn nợ (cùng điều kiện môi trường với các AC chạy thật) — ghi rõ trong mô tả PR, không tính là đã pass.
