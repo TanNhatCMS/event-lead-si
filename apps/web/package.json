@@ -53,6 +53,7 @@
     "@tanstack/react-table": "catalog:",
     "ai": "catalog:",
     "date-fns": "catalog:",
+    "eve": "catalog:",
     "lucide-react": "catalog:",
     "mammoth": "^1.13.0",
     "next": "catalog:",

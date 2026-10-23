@@ -43,6 +43,10 @@ yarn-error.log*
 .vscode/
 .zed
 
+# eve (vercel/eve build artifacts — apps/web)
+apps/web/.eve/
+apps/web/.output/
+
 # contentlayer
 .contentlayer/
 # prds
