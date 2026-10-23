@@ -1,4 +1,4 @@
-import { createGateway, generateText, Output, stepCountIs } from "ai";
+import { generateText, Output, stepCountIs } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@kit/supabase/database";
@@ -13,7 +13,11 @@ import {
   type EnrichmentToolCall,
 } from "./types";
 import { buildEnrichmentTools } from "./tools";
-import { getGatewayApiKey, resolveEnrichmentConfig } from "./model-config";
+import {
+  createEnrichmentModel,
+  getEnrichmentConfigIssue,
+  resolveEnrichmentConfig,
+} from "./model-config";
 import { getPrompt } from "../prompts/manager";
 import { getPromptDefault } from "../prompts/defaults";
 
@@ -23,8 +27,10 @@ import { getPromptDefault } from "../prompts/defaults";
  * - Tối đa 6 steps: mỗi step LLM chọn tools → thực thi → kết quả được append
  *   vào context → lặp lại cho đến khi LLM trả kết luận (structured output)
  *   hoặc hết số step.
- * - Model lấy từ cấu hình `ai_model_configs` (capability `lead_enrichment`)
- *   của người dùng, fallback `ENRICHMENT_MODEL`; key từ AI Gateway env.
+ * - Model + provider lấy từ cấu hình `ai_model_configs` (capability
+ *   `lead_enrichment`) của người dùng, fallback env (`ENRICHMENT_PROVIDER`,
+ *   `ENRICHMENT_MODEL`). Provider mặc định là OpenAI gọi thẳng (không qua
+ *   AI Gateway — quyết định 2026-10-24); key luôn từ biến môi trường server.
  * - NGUYÊN TẮC: agent CHỈ trả findings kèm confidence + nguồn, KHÔNG tự ghi
  *   đè dữ liệu contact (hiến chương "AI gợi ý, người quyết định").
  */
@@ -161,14 +167,12 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
           : "Hãy đặt ENRICHMENT_MODEL trong biến môi trường hoặc cấu hình capability lead_enrichment."),
     );
   }
-  const apiKey = getGatewayApiKey();
-  if (!apiKey) {
-    throw new EnrichmentNotConfiguredError(
-      "Chưa cấu hình AI Gateway. Hãy đặt AI_GATEWAY_API_KEY trong biến môi trường.",
-    );
+  const issue = getEnrichmentConfigIssue(config);
+  if (issue) {
+    throw new EnrichmentNotConfiguredError(issue);
   }
 
-  const provider = createGateway({ apiKey });
+  const model = createEnrichmentModel({ ...config, model: config.model });
   const tools = buildEnrichmentTools();
   const systemPrompt = input.supabase
     ? await getPrompt('lead_enrichment', input.userId ?? '', input.supabase)
@@ -177,7 +181,7 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
   let generated;
   try {
     generated = await generateText({
-      model: provider(config.model),
+      model,
       system: systemPrompt,
       prompt: buildUserPrompt(input.recognized),
       tools,
@@ -223,11 +227,9 @@ export async function checkEnrichmentConfigured(
         "Liên hệ quản trị viên để bật capability lead_enrichment hoặc đặt ENRICHMENT_MODEL.",
     };
   }
-  if (!getGatewayApiKey()) {
-    return {
-      configured: false,
-      message: "Chưa cấu hình AI Gateway (thiếu AI_GATEWAY_API_KEY).",
-    };
+  const issue = getEnrichmentConfigIssue(config);
+  if (issue) {
+    return { configured: false, message: issue };
   }
   return { configured: true, message: null };
 }

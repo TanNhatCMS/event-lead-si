@@ -32,6 +32,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@ai-sdk/openai": "catalog:",
     "@ai-sdk/react": "catalog:",
     "@hookform/resolvers": "catalog:",
     "@kit/accounts": "workspace:*",

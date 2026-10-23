@@ -3,6 +3,7 @@ packages:
   - packages/**
   - tooling/*
 catalog:
+  '@ai-sdk/openai': 4.0.93
   '@ai-sdk/react': ^4.0.142
   '@hookform/resolvers': ^5.2.2
   ai: 7.0.139
