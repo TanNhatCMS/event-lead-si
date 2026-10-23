@@ -64,7 +64,7 @@ catalog:
   turbo: 2.11.10
   typescript: 7.0.2
   vaul: 1.1.2
-  vitest: 5.0.4
+  vitest: 5.0.5
   "@e965/xlsx": 0.20.3
   xlsx: 0.18.5
   zod: 4.6.7
