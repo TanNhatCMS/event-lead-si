@@ -9,7 +9,7 @@ import pathsConfig from '~/config/paths.config';
 const NEXT_ACTION_HEADER = 'next-action';
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|images|locales|assets|api/*|.well-known/workflow).*)'],
+  matcher: ['/((?!_next/static|_next/image|images|locales|assets|api/*|eve|.well-known/workflow).*)'],
 };
 
 const getUser = (request: NextRequest, response: NextResponse) => {
