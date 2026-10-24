@@ -1,0 +1,40 @@
+# dependencies / build artifacts trên máy host — image tự cài lại
+node_modules
+**/node_modules
+**/.next
+**/.turbo
+**/coverage
+**/test-results
+**/playwright-report
+
+# git (turbo/build không cần)
+.git
+.gitattributes
+
+# env local của máy host (image set env riêng qua build args + compose)
+**/.env.local
+**/.env*.local
+**/.env.docker
+!**/.env.docker.example
+
+# code cũ (pre-makerkit) — không còn được dùng, không đưa vào image
+/src
+/public
+/middleware.ts
+/next.config.ts
+/next-env.d.ts
+/supabase
+
+# tài liệu / tooling không cần trong image
+/docs
+/specs
+/.specify
+/.agents
+/.github
+/.prds
+*.md
+!packages/**/README.md
+
+# Dockerfile tự tham chiếu
+**/Dockerfile
+.dockerignore
