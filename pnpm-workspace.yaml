@@ -4,9 +4,9 @@ packages:
   - tooling/*
 catalog:
   '@ai-sdk/openai': 4.0.101
-  '@ai-sdk/react': ^4.0.142
+  '@ai-sdk/react': 4.0.154
   '@hookform/resolvers': ^6.0.0
-  ai: 7.0.139
+  ai: 7.0.150
   eve: 0.83.0
   react-easy-crop: 5.5.7
   '@makerkit/data-loader-supabase-core': ^0.0.10
