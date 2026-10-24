@@ -72,7 +72,7 @@ function extractReadableText(html: string): { title?: string; text: string } {
   const title = titleMatch?.[1]?.replace(/\s+/g, " ").trim() || undefined;
 
   let text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
@@ -81,11 +81,11 @@ function extractReadableText(html: string): { title?: string; text: string } {
   // Giải mã một số HTML entity phổ biến.
   text = text
     .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, "&")
     .replace(/\s+/g, " ")
     .trim();
 
