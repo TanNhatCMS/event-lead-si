@@ -72,7 +72,7 @@ function extractReadableText(html: string): { title?: string; text: string } {
   const title = titleMatch?.[1]?.replace(/\s+/g, " ").trim() || undefined;
 
   let text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
     .replace(/<!--[\s\S]*?-->/g, " ")
