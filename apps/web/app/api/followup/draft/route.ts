@@ -7,6 +7,7 @@ import { createGateway, generateText } from 'ai';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
 import { getPrompt } from '~/lib/ai/prompts/manager';
+import { withUserSpan } from '~/lib/otel/trace';
 
 import {
   getAiModelConfig,
@@ -124,19 +125,22 @@ export async function POST(request: Request) {
   const company = contact.companies as unknown as { display_name: string } | null;
   try {
     const provider = createGateway({ apiKey });
-    const generated = await generateText({
-      model: provider(model),
-      system: await getPrompt('followup_draft', user.id, supabase),
-      prompt: buildPrompt({
-        fullName: contact.full_name,
-        jobTitle: contact.job_title,
-        companyName: company?.display_name ?? null,
-        notes: (notes ?? []).map((n) => n.body),
-        context,
-        channel,
+    const generated = await withUserSpan('followup.draft', user.id, async () =>
+      generateText({
+        model: provider(model),
+        system: await getPrompt('followup_draft', user.id, supabase),
+        prompt: buildPrompt({
+          fullName: contact.full_name,
+          jobTitle: contact.job_title,
+          companyName: company?.display_name ?? null,
+          notes: (notes ?? []).map((n) => n.body),
+          context,
+          channel,
+        }),
+        maxOutputTokens: 500,
+        experimental_telemetry: { isEnabled: true },
       }),
-      maxOutputTokens: 500,
-    });
+    );
     return NextResponse.json({
       draft: generated.text.trim(),
       model_used: `${dbConfig ? 'database' : 'env'}:${model}`,

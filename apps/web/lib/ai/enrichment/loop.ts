@@ -2,6 +2,7 @@ import { generateText, Output, stepCountIs } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@kit/supabase/database";
+import { withUserSpan } from "~/lib/otel/trace";
 
 import type { RecognizedCard } from "~/lib/ai/card-recognition";
 import {
@@ -178,26 +179,30 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
     ? await getPrompt('lead_enrichment', input.userId ?? '', input.supabase)
     : getPromptDefault('lead_enrichment')?.content ?? '';
 
+  const spanUserId = input.userId ?? 'unknown';
   let generated;
   try {
-    generated = await generateText({
-      model,
-      system: systemPrompt,
-      prompt: buildUserPrompt(input.recognized),
-      tools,
-      stopWhen: stepCountIs(MAX_STEPS),
-      maxOutputTokens: 2000,
-      output: Output.object({ schema: enrichmentOutputSchema }),
-      // Log từng step ngay khi xong (thay vì chờ cả loop) — pattern từ
-      // ZCode TurnMachine (phase executing_tools → aggregating_results):
-      // giúp debug khi loop chạy lâu hoặc kẹt ở tool nào.
-      onStepFinish: (step) => {
-        const names = (step.toolCalls ?? []).map((c) => c.toolName).join(", ");
-        console.log(
-          `[enrichment] step xong: tools=[${names || "suy luận"}] finishReason=${step.finishReason}`
-        );
-      },
-    });
+    generated = await withUserSpan("enrichment.run", spanUserId, () =>
+      generateText({
+        model,
+        system: systemPrompt,
+        prompt: buildUserPrompt(input.recognized),
+        tools,
+        stopWhen: stepCountIs(MAX_STEPS),
+        maxOutputTokens: 2000,
+        output: Output.object({ schema: enrichmentOutputSchema }),
+        // Log từng step ngay khi xong (thay vì chờ cả loop) — pattern từ
+        // ZCode TurnMachine (phase executing_tools → aggregating_results):
+        // giúp debug khi loop chạy lâu hoặc kẹt ở tool nào.
+        onStepFinish: (step) => {
+          const names = (step.toolCalls ?? []).map((c) => c.toolName).join(", ");
+          console.log(
+            `[enrichment] step xong: tools=[${names || "suy luận"}] finishReason=${step.finishReason}`
+          );
+        },
+        experimental_telemetry: { isEnabled: true },
+      }),
+    );
   } catch (err) {
     throw new Error(
       "Chạy agent làm giàu dữ liệu thất bại: " +

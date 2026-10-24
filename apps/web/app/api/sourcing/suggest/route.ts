@@ -7,6 +7,7 @@ import { createGateway, generateText, Output } from 'ai';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
 import { getPrompt } from '~/lib/ai/prompts/manager';
+import { withUserSpan } from '~/lib/otel/trace';
 
 import {
   getAiModelConfig,
@@ -124,13 +125,16 @@ export async function POST(request: Request) {
 
   try {
     const provider = createGateway({ apiKey });
-    const generated = await generateText({
-      model: provider(model),
-      system: await getPrompt('sourcing_suggest', user.id, supabase),
-      prompt,
-      output: Output.object({ schema: suggestionSchema }),
-      maxOutputTokens: 2000,
-    });
+    const generated = await withUserSpan('sourcing.suggest', user.id, async () =>
+      generateText({
+        model: provider(model),
+        system: await getPrompt('sourcing_suggest', user.id, supabase),
+        prompt,
+        output: Output.object({ schema: suggestionSchema }),
+        maxOutputTokens: 2000,
+        experimental_telemetry: { isEnabled: true },
+      }),
+    );
     return NextResponse.json({
       suggestions: generated.output?.suggestions ?? [],
       model_used: `${dbConfig ? 'database' : 'env'}:${model}`,

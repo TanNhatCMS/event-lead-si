@@ -293,9 +293,9 @@ async function searchViaFetch(
   const stripTags = (s: string) =>
     s
       .replace(/<[^>]+>/g, "")
-      .replace(/&amp;/g, "&")
       .replace(/&quot;/g, '"')
       .replace(/&#x27;|&#39;/g, "'")
+      .replace(/&amp;/g, "&")
       .trim();
   const decodeDdg = (href: string) => {
     try {
