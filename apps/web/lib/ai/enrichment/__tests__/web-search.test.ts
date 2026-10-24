@@ -30,4 +30,21 @@ describe("runWebSearch", () => {
       },
     ]);
   });
+
+  it("removes unmatched HTML delimiters from search results", async () => {
+    vi.stubEnv("SEARCH_PROVIDER", "fetch");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          '<a class="result__a" href="https://example.com"><script</a><a class="result__snippet">Snippet</a>',
+          { status: 200 },
+        ),
+      ),
+    );
+
+    const result = await runWebSearch("query");
+
+    expect(result.results?.[0]?.title).toBe("script");
+  });
 });
