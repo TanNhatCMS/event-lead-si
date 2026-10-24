@@ -1,8 +1,9 @@
 import { test } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 
 import { AuthPageObject } from './auth.po';
 
-const newPassword = (Math.random() * 10000).toString();
+const newPassword = randomUUID();
 const emailAddress = (Math.random() * 10000).toFixed(0);
 
 test.describe('Password Reset Flow', () => {

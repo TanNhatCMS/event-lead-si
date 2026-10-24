@@ -81,6 +81,43 @@ Database: apply các migration trong `apps/web/supabase/migrations/` lên Supaba
 
 Sau khi apply: regenerate Supabase types (`packages/supabase/src/database.types.ts`).
 
+## Chạy thử local bằng Docker
+
+Build image production (Next.js standalone) và chạy thử mà không cần Node trên máy —
+chỉ cần Docker Desktop.
+
+```bash
+# 1. Bật Supabase local (chính nó cũng chạy bằng Docker trên máy host)
+pnpm supabase:web:start
+
+# 2. Build + chạy app trong container
+docker compose up --build web
+
+# 3. Mở http://localhost:3000
+```
+
+Cách hoạt động:
+
+- Image build ở `apps/web/Dockerfile` (multi-stage): cài workspace bằng pnpm →
+  `next build` với `output: standalone` → runner chỉ chứa server đã trace tối thiểu.
+- Container gọi Supabase local qua `host.docker.internal:54321`; browser trên máy
+  host dùng được cùng URL đó (Docker Desktop tự resolve).
+- Các biến `NEXT_PUBLIC_*` được **inline lúc build** — muốn trỏ Supabase khác thì
+  override khi build:
+  ```bash
+  NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co \
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ... \
+  docker compose up --build web
+  ```
+- Biến server-only (`SUPABASE_SERVICE_ROLE_KEY`, `AI_GATEWAY_API_KEY`, model...)
+  đọc lúc runtime từ `apps/web/.env.docker` — copy từ `.env.docker.example`.
+  Với Supabase local, service-role key mặc định của compose đã khớp với CLI.
+- Xoá sạch: `docker compose down --rmi local` (image) — Supabase local vẫn dừng
+  bằng `pnpm supabase:web:stop`.
+
+Lưu ý: image này để smoke-test bản production build chạy thật; unit/E2E tests vẫn
+chạy bằng pnpm trên máy host (mục "Kiểm tra" bên dưới).
+
 ## Kiểm tra
 
 ```bash

@@ -1,4 +1,6 @@
 name: Workflow
+permissions:
+  contents: read
 on:
   push:
     branches: [main]
@@ -22,7 +24,7 @@ jobs:
           node-version: lts/*
           cache: 'pnpm'
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.sha }}
@@ -51,7 +53,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ github.sha }}
@@ -74,7 +76,7 @@ jobs:
 
       - name: Cache Playwright Browsers for Playwright's Version
         id: cache-playwright-browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-browsers-${{ env.PLAYWRIGHT_VERSION }}

@@ -5,6 +5,7 @@ import { getSupabaseServerClient } from "@kit/supabase/server-client";
 import { recognizedCardSchema } from "~/lib/ai/card-recognition";
 import { resolveCardRecognitionConfig } from "~/lib/ai/model-config";
 import { getCardRecognitionProvider } from "~/lib/ai/recognition-providers";
+import { withUserSpan } from "~/lib/otel/trace";
 
 const allowedTypes = new Set([
   "image/jpeg",
@@ -101,12 +102,14 @@ export async function POST(request: Request) {
     const provider = await getCardRecognitionProvider({ userId: user.id, supabase });
     providerName = provider.name;
     const buffer = Buffer.from(await image.arrayBuffer());
-    const result = await provider.recognize({
-      image: new Uint8Array(buffer),
-      mediaType: image.type || "application/octet-stream",
-      userId: user.id,
-      supabase,
-    });
+    const result = await withUserSpan("card.recognize", user.id, () =>
+      provider.recognize({
+        image: new Uint8Array(buffer),
+        mediaType: image.type || "application/octet-stream",
+        userId: user.id,
+        supabase,
+      }),
+    );
     recognized = recognizedCardSchema.parse(result);
   } catch (err) {
     return NextResponse.json(
