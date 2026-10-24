@@ -53,7 +53,7 @@ catalogs:
       version: 8.21.3
     '@turbo/gen':
       specifier: ^2.5.8
-      version: 2.10.8
+      version: 2.11.10
     '@types/mdx':
       specifier: ^2.0.13
       version: 2.0.14
@@ -217,7 +217,7 @@ importers:
         version: 0.25.1
       '@turbo/gen':
         specifier: 'catalog:'
-        version: 2.10.8(@types/node@24.19.2)
+        version: 2.11.10(@types/node@24.19.2)
       cross-env:
         specifier: 'catalog:'
         version: 10.1.0
@@ -3273,8 +3273,8 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
-  '@turbo/gen@2.10.8':
-    resolution: {integrity: sha512-w89Hj4tDnZoBL47mQulcjH0S1Za5q8zHyjIbR0v72Y11z4lPUhcoq48jaPTjVBSji0Nh+GAAr9kcDUDMytT/9w==}
+  '@turbo/gen@2.11.10':
+    resolution: {integrity: sha512-PL/OEEJLdsmS8zF/ijMrG9yi/j+PYe0nOCcZ1XbKndcjdYmeALnqHaxwoGmOo73FwDzC8mnsy2KrqNV6biaGlA==}
     hasBin: true
 
   '@turbo/linux-64@2.11.10':
@@ -8838,7 +8838,7 @@ snapshots:
   '@turbo/darwin-arm64@2.11.10':
     optional: true
 
-  '@turbo/gen@2.10.8(@types/node@24.19.2)':
+  '@turbo/gen@2.11.10(@types/node@24.19.2)':
     dependencies:
       '@inquirer/prompts': 7.10.1(@types/node@24.19.2)
       esbuild: 0.28.1
