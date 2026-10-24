@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { Page, expect, test } from '@playwright/test';
 
 import { AccountPageObject } from './account.po';
@@ -34,7 +36,7 @@ test.describe('Account Settings', () => {
   });
 
   test('user can update their password', async () => {
-    const password = (Math.random() * 100000).toString();
+    const password = randomBytes(16).toString('hex');
 
     const request = account.updatePassword(password);
 
