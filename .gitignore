@@ -28,6 +28,7 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env.docker
 
 # vercel
 .vercel
@@ -43,7 +44,12 @@ yarn-error.log*
 .vscode/
 .zed
 
+# eve (vercel/eve build artifacts — apps/web)
+apps/web/.eve/
+apps/web/.output/
+
 # contentlayer
 .contentlayer/
 # prds
 .prds/
+/.pnpm-store

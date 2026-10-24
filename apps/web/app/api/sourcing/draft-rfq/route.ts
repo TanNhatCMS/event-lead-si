@@ -6,11 +6,13 @@ import { createGateway, generateText } from 'ai';
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { getPrompt } from '~/lib/ai/prompts/manager';
+import { withUserSpan } from '~/lib/otel/trace';
+
 import {
   getAiModelConfig,
   getGatewayApiKey,
 } from '~/lib/ai/enrichment/model-config';
-import { withUserSpan } from '~/lib/otel/trace';
 
 const bodySchema = z.object({
   request_id: z.string().uuid('Mã yêu cầu không hợp lệ.'),
@@ -21,22 +23,6 @@ const bodySchema = z.object({
 function errorJson(requestId: string, code: string, message: string, status: number) {
   return NextResponse.json({ code, message, request_id: requestId }, { status });
 }
-
-const SYSTEM_PROMPT = `Bạn là trợ lý sourcing B2B tại Việt Nam.
-Nhiệm vụ: dựa trên yêu cầu tìm nhà cung cấp và danh sách ứng viên (kèm bằng chứng),
-soạn nội dung theo loại được yêu cầu:
-
-- questions: bộ câu hỏi cần xác minh cho từng ứng viên (năng lực, giá, tiến độ, bảo hành...),
-  tập trung vào "khoảng trống bằng chứng" — những gì chưa có bằng chứng thì hỏi.
-- rfq: thư yêu cầu báo giá (RFQ) chuyên nghiệp bằng tiếng Việt: giới thiệu nhu cầu,
-  mô tả sản phẩm/dịch vụ, tiêu chí đánh giá, thời hạn phản hồi (để trống để người dùng điền).
-- negotiation: dàn ý chuẩn bị đàm phán: mục tiêu, BATNA gợi ý, điểm mặc cả theo tiêu chí,
-  câu hỏi mở và lưu ý văn hóa đàm phán B2B Việt Nam.
-
-Nguyên tắc:
-- Tiếng Việt, chuyên nghiệp, súc tích. Dùng đúng tên ứng viên/tiêu chí được cung cấp.
-- KHÔNG bịa bằng chứng. Khoảng trống bằng chứng thì ghi rõ "cần xác minh".
-- Chỉ trả về nội dung soạn thảo, không thêm lời giải thích.`;
 
 /**
  * POST /api/sourcing/draft-rfq
@@ -128,10 +114,10 @@ export async function POST(request: Request) {
 
   try {
     const provider = createGateway({ apiKey });
-    const generated = await withUserSpan('sourcing.draft_rfq', user.id, () =>
+    const generated = await withUserSpan('sourcing.draft_rfq', user.id, async () =>
       generateText({
         model: provider(model),
-        system: SYSTEM_PROMPT,
+        system: await getPrompt('sourcing_draft', user.id, supabase),
         prompt,
         maxOutputTokens: 2500,
         experimental_telemetry: { isEnabled: true },

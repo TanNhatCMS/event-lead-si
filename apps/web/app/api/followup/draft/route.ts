@@ -6,11 +6,13 @@ import { createGateway, generateText } from 'ai';
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { getPrompt } from '~/lib/ai/prompts/manager';
+import { withUserSpan } from '~/lib/otel/trace';
+
 import {
   getAiModelConfig,
   getGatewayApiKey,
 } from '~/lib/ai/enrichment/model-config';
-import { withUserSpan } from '~/lib/otel/trace';
 
 const bodySchema = z.object({
   contact_id: z.string().uuid('Mã liên hệ không hợp lệ.'),
@@ -23,17 +25,6 @@ const bodySchema = z.object({
 function errorJson(requestId: string, code: string, message: string, status: number) {
   return NextResponse.json({ code, message, request_id: requestId }, { status });
 }
-
-const SYSTEM_PROMPT = `Bạn là trợ lý soạn tin nhắn chăm sóc khách hàng người Việt.
-Nhiệm vụ: dựa trên thông tin liên hệ và ghi chú cuộc gặp, soạn MỘT tin nhắn follow-up ngắn gọn, lịch sự, tự nhiên.
-
-Nguyên tắc:
-- Tiếng Việt, giọng văn thân thiện, chuyên nghiệp, không sến.
-- Dưới 120 từ. Không dùng emoji trừ khi ngữ cảnh rất thân thiết.
-- Nhắc tới chi tiết cụ thể từ ghi chú (tên sự kiện, nhu cầu đã trao đổi) để tin nhắn không chung chung.
-- Kết thúc bằng một câu hỏi mở hoặc đề xuất bước tiếp theo cụ thể.
-- KHÔNG bịa thông tin không có trong dữ liệu. Nếu thiếu ngữ cảnh, soạn tin chào hỏi chung nhưng vẫn cá nhân hóa theo tên/chức danh/công ty.
-- Chỉ trả về nội dung tin nhắn, không thêm lời giải thích.`;
 
 function buildPrompt(input: {
   fullName: string;
@@ -134,10 +125,10 @@ export async function POST(request: Request) {
   const company = contact.companies as unknown as { display_name: string } | null;
   try {
     const provider = createGateway({ apiKey });
-    const generated = await withUserSpan('followup.draft', user.id, () =>
+    const generated = await withUserSpan('followup.draft', user.id, async () =>
       generateText({
         model: provider(model),
-        system: SYSTEM_PROMPT,
+        system: await getPrompt('followup_draft', user.id, supabase),
         prompt: buildPrompt({
           fullName: contact.full_name,
           jobTitle: contact.job_title,

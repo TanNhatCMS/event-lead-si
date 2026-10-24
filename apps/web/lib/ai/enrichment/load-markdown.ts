@@ -7,6 +7,12 @@ import { fileURLToPath } from "node:url";
 // process.cwd() để không phụ thuộc thư mục chạy lệnh.
 const ENRICHMENT_DIR = dirname(fileURLToPath(import.meta.url));
 
+// Khi module này bị eve biên dịch vào thư mục cache của nó
+// (node_modules/.cache/eve/authored-modules), đường dẫn theo import.meta.url
+// không còn trỏ tới cây nguồn — fallback sang cây nguồn tính từ cwd
+// (eve chạy service từ thư mục gốc của app web).
+const FALLBACK_DIR = join(process.cwd(), "lib/ai/enrichment");
+
 const cache = new Map<string, string>();
 
 /**
@@ -23,13 +29,22 @@ export function loadEnrichmentMarkdown(relativePath: string): string {
   const cached = cache.get(relativePath);
   if (cached !== undefined) return cached;
 
-  const fullPath = join(ENRICHMENT_DIR, relativePath);
-  let content: string;
-  try {
-    content = readFileSync(fullPath, "utf-8");
-  } catch {
+  const candidates = [
+    join(ENRICHMENT_DIR, relativePath),
+    join(FALLBACK_DIR, relativePath),
+  ];
+  let content: string | null = null;
+  for (const fullPath of candidates) {
+    try {
+      content = readFileSync(fullPath, "utf-8");
+      break;
+    } catch {
+      // thử ứng viên tiếp theo
+    }
+  }
+  if (content === null) {
     throw new Error(
-      `Không đọc được file markdown của enrichment agent: ${relativePath} (đã thử ${fullPath})`
+      `Không đọc được file markdown của enrichment agent: ${relativePath} (đã thử ${candidates.join(", ")})`
     );
   }
 

@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { createGateway, type LanguageModel } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@kit/supabase/database';
@@ -32,11 +34,49 @@ export interface ResolvedCardRecognitionConfig {
   source: AiModelConfigSource;
 }
 
+/**
+ * Provider gọi model cho enrichment:
+ * - "openai": gọi thẳng OpenAI bằng `@ai-sdk/openai` — mặc định theo quyết
+ *   định người dùng 2026-10-24 (không dùng AI Gateway cho enrichment).
+ * - "gateway": Vercel AI Gateway — chỉ khi cấu hình ghi tường minh.
+ */
+export type EnrichmentProvider = 'openai' | 'gateway';
+
+/**
+ * Chuẩn hoá giá trị provider từ DB/env. Mọi giá trị không phải Gateway
+ * tường minh ("openai", "openai-compatible", "custom", rỗng, không rõ) đều
+ * về "openai" — provider đích danh của enrichment.
+ */
+export function normalizeEnrichmentProvider(
+  raw: string | null | undefined,
+): EnrichmentProvider {
+  const value = (raw ?? '').trim().toLowerCase();
+  if (
+    value === 'gateway' ||
+    value === 'vercel-gateway' ||
+    value === 'ai-gateway'
+  ) {
+    return 'gateway';
+  }
+  return 'openai';
+}
+
 export interface ResolvedEnrichmentConfig {
-  /** Model id dùng cho AI Gateway, ví dụ "anthropic/claude-sonnet-4-5". */
+  /** Provider sẽ gọi model. */
+  provider: EnrichmentProvider;
+  /**
+   * Model id theo provider: qua OpenAI là tên model của OpenAI,
+   * ví dụ "gpt-5-mini"; qua Gateway ví dụ "anthropic/claude-sonnet-4-5".
+   */
   model: string | null;
   enabled: boolean;
   source: AiModelConfigSource;
+  /**
+   * Địa chỉ gốc tuỳ chọn cho OpenAI (chỉ dùng khi provider = "openai"):
+   * ưu tiên `config.base_url` trong DB, fallback env `OPENAI_BASE_URL`;
+   * `null` = endpoint mặc định của OpenAI do SDK tự dùng.
+   */
+  baseUrl: string | null;
 }
 
 /**
@@ -103,7 +143,8 @@ export async function resolveCardRecognitionConfig(
  * Phân giải cấu hình lead enrichment đang có hiệu lực.
  * - Ưu tiên dòng DB (`capability = 'lead_enrichment'` của người dùng), kể cả khi
  *   `enabled = false` — người dùng đã quyết định tắt thì tôn trọng.
- * - Fallback sang env `ENRICHMENT_MODEL` khi chưa có dòng cấu hình.
+ * - Fallback sang env (`ENRICHMENT_PROVIDER`, `ENRICHMENT_MODEL`,
+ *   `OPENAI_BASE_URL`) khi chưa có dòng cấu hình.
  */
 export async function resolveEnrichmentConfig(
   userId: string | null | undefined,
@@ -112,14 +153,80 @@ export async function resolveEnrichmentConfig(
   if (userId && supabase) {
     const row = await getAiModelConfig('lead_enrichment', userId, supabase);
     if (row) {
-      return { model: row.model, enabled: row.enabled, source: 'database' };
+      const configBaseUrl =
+        typeof row.config.base_url === 'string'
+          ? row.config.base_url.trim() || null
+          : null;
+      return {
+        provider: normalizeEnrichmentProvider(row.provider),
+        model: row.model,
+        enabled: row.enabled,
+        source: 'database',
+        baseUrl: configBaseUrl ?? getOpenAiBaseUrl(),
+      };
     }
   }
   const envModel = (process.env.ENRICHMENT_MODEL ?? '').trim() || null;
-  return { model: envModel, enabled: Boolean(envModel), source: 'env' };
+  return {
+    provider: normalizeEnrichmentProvider(process.env.ENRICHMENT_PROVIDER),
+    model: envModel,
+    enabled: Boolean(envModel),
+    source: 'env',
+    baseUrl: getOpenAiBaseUrl(),
+  };
 }
 
 /** API key của AI Gateway (server only). */
 export function getGatewayApiKey(): string | null {
   return (process.env.AI_GATEWAY_API_KEY ?? '').trim() || null;
+}
+
+/** API key của OpenAI (server only, chỉ từ env). */
+export function getOpenAiApiKey(): string | null {
+  return (process.env.OPENAI_API_KEY ?? '').trim() || null;
+}
+
+/** Địa chỉ gốc tuỳ chọn cho OpenAI từ env (server only). */
+export function getOpenAiBaseUrl(): string | null {
+  return (process.env.OPENAI_BASE_URL ?? '').trim() || null;
+}
+
+/**
+ * Kiểm tra phần credential/endpoint theo provider đã phân giải.
+ * Giả định caller đã kiểm tra `enabled` + `model`. Trả về thông điệp lỗi
+ * thân thiện khi thiếu cấu hình, `null` khi đã đủ.
+ */
+export function getEnrichmentConfigIssue(
+  config: ResolvedEnrichmentConfig,
+): string | null {
+  if (config.provider === 'openai') {
+    if (!getOpenAiApiKey()) {
+      return 'Chưa cấu hình OpenAI (thiếu OPENAI_API_KEY).';
+    }
+    return null;
+  }
+  if (!getGatewayApiKey()) {
+    return 'Chưa cấu hình AI Gateway (thiếu AI_GATEWAY_API_KEY).';
+  }
+  return null;
+}
+
+/**
+ * Tạo LanguageModel theo provider đã phân giải. Ném `Error` kèm thông điệp
+ * của `getEnrichmentConfigIssue` khi thiếu credential/endpoint — caller nên
+ * kiểm tra trước bằng chính hàm đó để trả lỗi thân thiện.
+ */
+export function createEnrichmentModel(
+  config: ResolvedEnrichmentConfig & { model: string },
+): LanguageModel {
+  const issue = getEnrichmentConfigIssue(config);
+  if (issue) throw new Error(issue);
+  if (config.provider === 'openai') {
+    const provider = createOpenAI({
+      apiKey: getOpenAiApiKey() as string,
+      ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
+    });
+    return provider(config.model);
+  }
+  return createGateway({ apiKey: getGatewayApiKey() as string })(config.model);
 }

@@ -22,3 +22,16 @@ trong các task port tính năng.
 - Tài liệu planning cũ: `specs/`, `.specify/` (hiến chương cần cập nhật cho single-user).
 - Node >= 22.13, pnpm 11 (`packageManager` trong package.json).
 - Không sửa `.github/workflows/` qua MCP tools (gateway chặn).
+
+## Docker local test (thêm 2026-10-24)
+
+- `apps/web/Dockerfile` (multi-stage → Next standalone) + `docker-compose.yml` (gốc repo)
+  + `.dockerignore` + `apps/web/.env.docker.example` (biến server-only lúc runtime).
+- Image dùng **node:24** (khớp `.nvmrc` `lts/*`): `proxy.ts` dùng global `URLPattern`
+  chỉ có từ Node 23.8+ — Node 22 làm standalone server crash.
+- Build stage set `NEXT_PUBLIC_CI=true` để schema `app.config.ts` chấp nhận
+  `NEXT_PUBLIC_SITE_URL=http://localhost:3000` (chuỗi escape hatch của kit).
+- `next.config.mjs`: `output: 'standalone'` + `images.unoptimized` chỉ bật khi
+  `NEXT_OUTPUT=standalone` (đặt trong Dockerfile) — deploy Vercel không đổi.
+- Container trỏ Supabase local qua `host.docker.internal:54321`; cần chạy
+  `pnpm supabase:web:start` trước khi `docker compose up --build web`.

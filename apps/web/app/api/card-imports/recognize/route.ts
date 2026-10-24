@@ -106,6 +106,8 @@ export async function POST(request: Request) {
       provider.recognize({
         image: new Uint8Array(buffer),
         mediaType: image.type || "application/octet-stream",
+        userId: user.id,
+        supabase,
       }),
     );
     recognized = recognizedCardSchema.parse(result);

@@ -42,6 +42,18 @@ const CAPABILITIES = [
     description:
       'Gợi ý ứng viên từ danh bạ, soạn câu hỏi/RFQ/dàn ý đàm phán. Chỉ gợi ý và soạn nháp, người dùng quyết định.',
   },
+  {
+    id: 'rag_chat',
+    label: 'Chatbot RAG tra cứu tri thức',
+    description:
+      'Trả lời câu hỏi từ tài liệu đã tải lên và danh bạ, kèm trích dẫn nguồn. Chỉ tư vấn và dựng dự thảo, không tự tính toán hay tự gửi.',
+  },
+  {
+    id: 'rag_embeddings',
+    label: 'Embedding cho RAG',
+    description:
+      'Vector hóa nội dung tài liệu và danh bạ để chatbot tìm kiếm ngữ nghĩa. Mặc định openai/text-embedding-3-small (1536 chiều).',
+  },
 ] as const;
 
 const upsertSchema = z.object({
@@ -110,6 +122,23 @@ function getEnvInfo(capability: string): {
   if (capability === 'lead_enrichment') {
     const envModel = (process.env.ENRICHMENT_MODEL ?? '').trim() || null;
     return { envProvider: 'AI Gateway', envModel, envEnabled: Boolean(envModel) };
+  }
+  if (capability === 'rag_chat') {
+    const envModel = (process.env.RAG_CHAT_MODEL ?? '').trim() || null;
+    return { envProvider: 'AI Gateway', envModel, envEnabled: Boolean(envModel) };
+  }
+  if (capability === 'rag_embeddings') {
+    const envModel =
+      (process.env.RAG_EMBEDDING_MODEL ?? '').trim() ||
+      'openai/text-embedding-3-small';
+    return {
+      envProvider: 'AI Gateway',
+      envModel,
+      envEnabled: Boolean(
+        (process.env.RAG_EMBEDDING_MODEL ?? '').trim() ||
+          process.env.AI_GATEWAY_API_KEY,
+      ),
+    };
   }
   return {
     envProvider:

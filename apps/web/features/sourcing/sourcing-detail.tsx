@@ -20,7 +20,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@kit/ui/card';
 import { Input } from '@kit/ui/input';
 import { Label } from '@kit/ui/label';
 import { Spinner } from '@kit/ui/spinner';
-import { Textarea } from '@kit/ui/textarea';
 import { cn } from '@kit/ui/utils';
 
 type Criterion = { label: string; detail?: string };

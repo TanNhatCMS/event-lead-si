@@ -1,6 +1,8 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { toolRegistry } from "../tools";
+import { webFetchTool } from "../tools/webfetch";
 import { loadEnrichmentMarkdown } from "./load-markdown";
 
 /**
@@ -402,13 +404,71 @@ const webSearchTool = tool({
   },
 });
 
+let registrySeeded = false;
+
 /** Bộ tool đầy đủ cho agent loop. */
 export function buildEnrichmentTools() {
-  return {
+  const tools = {
     normalize_vn_phone: normalizeVnPhoneTool,
     extract_company_domain: extractCompanyDomainTool,
     web_search: webSearchTool,
+    web_fetch: webFetchTool,
   };
+
+  if (registrySeeded) return tools;
+  registrySeeded = true;
+  // Đăng ký vào registry dùng chung (pattern bóc từ ZCode) — chỉ một lần.
+  toolRegistry.register({
+    metadata: {
+      name: "normalize_vn_phone",
+      description: "Chuẩn hoá SĐT Việt Nam về +84 kèm nhà mạng.",
+      category: "internal",
+      readOnly: true,
+      riskLevel: "low",
+      needsApproval: false,
+      origin: "eventlead",
+    },
+    tool: normalizeVnPhoneTool,
+  });
+  toolRegistry.register({
+    metadata: {
+      name: "extract_company_domain",
+      description: "Suy domain/website công ty từ email.",
+      category: "internal",
+      readOnly: true,
+      riskLevel: "low",
+      needsApproval: false,
+      origin: "eventlead",
+    },
+    tool: extractCompanyDomainTool,
+  });
+  toolRegistry.register({
+    metadata: {
+      name: "web_search",
+      description: "Tìm kiếm thông tin công khai trên web theo từ khoá.",
+      category: "web",
+      readOnly: true,
+      riskLevel: "medium",
+      needsApproval: true,
+      origin: "eventlead",
+    },
+    tool: webSearchTool,
+  });
+  toolRegistry.register({
+    metadata: {
+      name: "web_fetch",
+      description:
+        "Đọc nội dung text của một URL công khai (sau web_search hoặc từ website suy ra).",
+      category: "web",
+      readOnly: true,
+      riskLevel: "medium",
+      needsApproval: true,
+      origin: "zcode-port",
+    },
+    tool: webFetchTool,
+  });
+
+  return tools;
 }
 
 export type EnrichmentToolSet = ReturnType<typeof buildEnrichmentTools>;

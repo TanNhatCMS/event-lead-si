@@ -6,11 +6,13 @@ import { createGateway, generateText } from 'ai';
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { getPrompt } from '~/lib/ai/prompts/manager';
+import { withUserSpan } from '~/lib/otel/trace';
+
 import {
   getAiModelConfig,
   getGatewayApiKey,
 } from '~/lib/ai/enrichment/model-config';
-import { withUserSpan } from '~/lib/otel/trace';
 
 const bodySchema = z.object({
   target_id: z.string().uuid('Mã liên hệ không hợp lệ.'),
@@ -20,18 +22,6 @@ const bodySchema = z.object({
 function errorJson(requestId: string, code: string, message: string, status: number) {
   return NextResponse.json({ code, message, request_id: requestId }, { status });
 }
-
-const SYSTEM_PROMPT = `Bạn là trợ lý soạn tin nhắn giới thiệu trong mạng lưới quan hệ B2B người Việt.
-Nhiệm vụ: soạn MỘT tin nhắn ngắn để người dùng gửi cho "cầu nối", nhờ giới thiệu
-mình với "mục tiêu".
-
-Nguyên tắc:
-- Tiếng Việt, lịch sự, không sến. Dưới 100 từ.
-- Nêu rõ: mình là ai (để trống tên nếu không biết), muốn kết nối với mục tiêu vì lý do gì
-  (để chung chung "hợp tác trong lĩnh vực [X]" nếu không có ngữ cảnh cụ thể), và
-  đề xuất cách giới thiệu nhẹ nhàng (tin nhắn nhóm, email giới thiệu...).
-- KHÔNG bịa chi tiết về mối quan hệ giữa các bên.
-- Chỉ trả về nội dung tin nhắn, không thêm giải thích.`;
 
 /**
  * POST /api/relationships/intro-draft
@@ -103,10 +93,10 @@ export async function POST(request: Request) {
 
   try {
     const provider = createGateway({ apiKey });
-    const generated = await withUserSpan('relationships.intro_draft', user.id, () =>
+    const generated = await withUserSpan('relationships.intro_draft', user.id, async () =>
       generateText({
         model: provider(model),
-        system: SYSTEM_PROMPT,
+        system: await getPrompt('relationships_intro', user.id, supabase),
         prompt,
         maxOutputTokens: 500,
         experimental_telemetry: { isEnabled: true },

@@ -5,6 +5,8 @@ import { z } from 'zod';
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { enqueueBusinessIndexSafe } from '~/lib/ai/rag/contact-index';
+
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -85,6 +87,9 @@ export async function POST(request: Request, { params }: RouteContext) {
   if (error || !note) {
     return errorJson(requestId, 'create_failed', 'Chưa thêm được ghi chú.', 500);
   }
+
+  // Enqueue index RAG (fire-and-forget).
+  void enqueueBusinessIndexSafe(user.id, 'meeting_note', note.id, 'upsert', supabase);
 
   return NextResponse.json({ note, request_id: requestId }, { status: 201 });
 }

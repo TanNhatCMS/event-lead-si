@@ -26,9 +26,14 @@
     "supabase:typegen": "pnpm run supabase:typegen:packages && pnpm run supabase:typegen:app",
     "supabase:typegen:packages": "supabase gen types typescript --local > ../../packages/supabase/src/database.types.ts",
     "supabase:typegen:app": "supabase gen types typescript --local > ./lib/database.types.ts",
-    "supabase:db:dump:local": "supabase db dump --local --data-only"
+    "supabase:db:dump:local": "supabase db dump --local --data-only",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@ai-sdk/openai": "catalog:",
+    "@ai-sdk/react": "catalog:",
     "@hookform/resolvers": "catalog:",
     "@kit/accounts": "workspace:*",
     "@kit/auth": "workspace:*",
@@ -39,8 +44,8 @@
     "@makerkit/data-loader-supabase-core": "catalog:",
     "@makerkit/data-loader-supabase-nextjs": "catalog:",
     "@marsidev/react-turnstile": "catalog:",
-    "@opentelemetry/api": "1.9.0",
-    "@opentelemetry/core": "1.30.1",
+    "@opentelemetry/api": "1.10.0",
+    "@opentelemetry/core": "3.0.0",
     "@opentelemetry/sdk-trace-base": "1.30.1",
     "@opentelemetry/sdk-trace-node": "1.30.1",
     "@supabase/supabase-js": "catalog:",
@@ -48,11 +53,14 @@
     "@tanstack/react-table": "catalog:",
     "ai": "catalog:",
     "date-fns": "catalog:",
+    "eve": "catalog:",
     "lucide-react": "catalog:",
+    "mammoth": "^1.13.0",
     "next": "catalog:",
     "next-intl": "catalog:",
     "next-sitemap": "catalog:",
     "next-themes": "catalog:",
+    "pdfjs-dist": "^6.4.299",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-easy-crop": "catalog:",
@@ -60,12 +68,14 @@
     "recharts": "catalog:",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:",
+    "workflow": "catalog:",
     "xlsx": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@kit/tsconfig": "workspace:*",
     "@next/bundle-analyzer": "catalog:",
+    "@playwright/test": "catalog:",
     "@tailwindcss/postcss": "catalog:",
     "@types/mdx": "catalog:",
     "@types/node": "catalog:",
@@ -78,7 +88,8 @@
     "supabase": "catalog:",
     "tailwindcss": "catalog:",
     "tailwindcss-animate": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "browserslist": [
     "last 1 versions",
