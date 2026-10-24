@@ -1,0 +1,57 @@
+# Chạy thử app web local bằng Docker.
+#
+# 1. Bật Supabase local trên máy host (chính nó cũng chạy bằng Docker):
+#      pnpm supabase:web:start
+# 2. Build + chạy app trong container:
+#      docker compose up --build web
+# 3. Mở http://localhost:3000
+#
+# Container gọi Supabase local qua host.docker.internal:54321, còn browser
+# trên máy host vẫn truy cập được cùng URL đó (Docker Desktop tự resolve).
+# Đang trỏ Supabase ở xa? Override biến khi build:
+#   NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co \
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ... docker compose up --build web
+#
+# Biến server-only (SUPABASE_SERVICE_ROLE_KEY, AI_GATEWAY_API_KEY, model...)
+# đọc lúc runtime từ apps/web/.env.docker — copy từ .env.docker.example.
+
+name: event-lead-si
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # NEXT_PUBLIC_* được inline lúc build — đổi giá trị là phải build lại
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://host.docker.internal:54321}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    ports:
+      - '3000:3000'
+    # Cần trên Linux (Docker Desktop đã có sẵn); cho phép container truy cập
+    # Supabase local đang chạy trên máy host.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    env_file:
+      - path: apps/web/.env.docker
+        required: false
+    environment:
+      # Đảm bảo server-side trỏ đúng Supabase local trong container
+      # (ghi đè .env.production rỗng được commit trong repo).
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://host.docker.internal:54321}
+      # Key service-role của Supabase local (giá trị mặc định của supabase
+      # CLI, giống .env.development). Trỏ Supabase ở xa thì đặt biến này ở
+      # shell hoặc apps/web/.env.docker.
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped

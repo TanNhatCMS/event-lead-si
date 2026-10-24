@@ -20,8 +20,6 @@ const CAPABILITIES = [
   },
 ] as const;
 
-type CapabilityId = (typeof CAPABILITIES)[number]["id"];
-
 const ALLOWED_CAPABILITIES: readonly string[] = CAPABILITIES.map((c) => c.id);
 
 /**

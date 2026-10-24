@@ -1,4 +1,6 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import { withWorkflow } from 'workflow/next';
+import { withEve } from 'eve/next';
 
 // Create the next-intl plugin with the request config path
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
@@ -6,6 +8,8 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ENABLE_REACT_COMPILER = process.env.ENABLE_REACT_COMPILER === 'true';
+/** Set by the Docker build (apps/web/Dockerfile) to emit a standalone server. */
+const IS_STANDALONE_BUILD = process.env.NEXT_OUTPUT === 'standalone';
 
 const INTERNAL_PACKAGES = [
   '@kit/ui',
@@ -20,15 +24,25 @@ const INTERNAL_PACKAGES = [
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
+  /** Standalone server output, only for the Docker local-test image. */
+  output: IS_STANDALONE_BUILD ? 'standalone' : undefined,
   /** Enables hot reloading for local packages without a build step */
   transpilePackages: INTERNAL_PACKAGES,
   images: {
     remotePatterns: getRemotePatterns(),
     /**
      * Supabase Storage runs on 127.0.0.1 locally, and Next.js 16 blocks
-     * optimizing local IPs by default. Only relax this outside production.
+     * optimizing local IPs by default. Only relax this outside production —
+     * or in the standalone Docker build used for local testing, where the
+     * local Supabase is reached over host.docker.internal.
      */
-    dangerouslyAllowLocalIP: !IS_PRODUCTION,
+    dangerouslyAllowLocalIP: !IS_PRODUCTION || IS_STANDALONE_BUILD,
+    /**
+     * The standalone image is a local smoke-test target: skip the optimizer
+     * (sharp tracing + prod remotePatterns) so avatars from local Supabase
+     * still render. Vercel deploys are unaffected (NEXT_OUTPUT is unset).
+     */
+    unoptimized: IS_STANDALONE_BUILD,
   },
   logging: {
     fetches: {
@@ -75,18 +89,20 @@ const config = {
   typescript: { ignoreBuildErrors: true },
 };
 
-export default withNextIntl(config);
+// withEve (vercel/eve): mount agent ở thư mục `agent/` của app tại
+// /eve/v1/* — xem specs/004-eve-agent. withWorkflow: spec 003.
+export default withEve(withWorkflow(withNextIntl(config)));
 
 function getRemotePatterns() {
   /** @type {import('next').NextConfig['remotePatterns']} */
   const remotePatterns = [];
 
   if (SUPABASE_URL) {
-    const hostname = new URL(SUPABASE_URL).hostname;
+    const url = new URL(SUPABASE_URL);
 
     remotePatterns.push({
-      protocol: 'https',
-      hostname,
+      protocol: url.protocol === 'https:' ? 'https' : 'http',
+      hostname: url.hostname,
     });
   }
 

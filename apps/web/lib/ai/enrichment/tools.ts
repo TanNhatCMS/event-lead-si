@@ -292,10 +292,10 @@ async function searchViaFetch(
     /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
   const stripTags = (s: string) =>
     s
-      .replace(/<[^>]+>/g, "")
-      .replace(/&amp;/g, "&")
+      .replace(/[<>]/g, "")
       .replace(/&quot;/g, '"')
       .replace(/&#x27;|&#39;/g, "'")
+      .replace(/&amp;/g, "&")
       .trim();
   const decodeDdg = (href: string) => {
     try {
