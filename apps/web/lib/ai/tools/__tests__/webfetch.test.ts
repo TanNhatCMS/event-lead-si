@@ -28,4 +28,25 @@ describe("runWebFetch", () => {
 
     expect(result.text).toBe("A & B &lt;tag&gt;");
   });
+
+  it("removes script content when the closing tag contains whitespace", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          "<p>Visible</p><script>alert(1)</script ><p>Also visible</p>",
+          {
+            headers: { "content-type": "text/html" },
+          },
+        ),
+      ),
+    );
+
+    const result = await runWebFetch(
+      `https://script-end-tag-${Date.now()}.example`,
+    );
+
+    expect(result.available).toBe(true);
+    expect(result.text).toBe("Visible Also visible");
+  });
 });
