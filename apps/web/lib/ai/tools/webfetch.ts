@@ -81,11 +81,11 @@ function extractReadableText(html: string): { title?: string; text: string } {
   // Giải mã một số HTML entity phổ biến.
   text = text
     .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, "&")
     .replace(/\s+/g, " ")
     .trim();
 
