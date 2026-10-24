@@ -5,7 +5,16 @@ import { SpanStatusCode, trace, type Attributes, type Span } from '@opentelemetr
 /** Tên attribute dùng để gắn user_id lên span (exporter đọc để điền user_id). */
 export const USER_ID_ATTR = 'app.user_id';
 
-const tracer = trace.getTracer('eventlead-web');
+/**
+ * Lấy tracer lúc gọi (không giữ ở module scope): trace.getTracer() trước khi
+ * provider được đăng ký sẽ kẹt ở NoopTracer với @opentelemetry/api 1.10
+ * (test đã chứng minh: import trước, register sau -> span mất hút).
+ * Next.js đảm bảo instrumentation chạy trước route, nhưng lazy lookup vẫn
+ * rẻ (map lookup) và loại hẳn footgun này.
+ */
+function getTracer() {
+  return trace.getTracer('eventlead-web');
+}
 
 /**
  * Tạo span thủ công có gắn user_id và trả về cho caller tự quản lý vòng đời.
@@ -21,7 +30,7 @@ export function startUserSpan(
   userId: string,
   attributes?: Attributes,
 ): Span {
-  return tracer.startSpan(name, {
+  return getTracer().startSpan(name, {
     attributes: { [USER_ID_ATTR]: userId, ...attributes },
   });
 }
@@ -56,7 +65,7 @@ export async function withUserSpan<T>(
   userId: string,
   fn: () => Promise<T>,
 ): Promise<T> {
-  return tracer.startActiveSpan(
+  return getTracer().startActiveSpan(
     name,
     { attributes: { [USER_ID_ATTR]: userId } },
     async (span) => {
