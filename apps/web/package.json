@@ -32,6 +32,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@ai-sdk/openai": "catalog:",
     "@ai-sdk/react": "catalog:",
     "@hookform/resolvers": "catalog:",
     "@kit/accounts": "workspace:*",
@@ -52,6 +53,7 @@
     "@tanstack/react-table": "catalog:",
     "ai": "catalog:",
     "date-fns": "catalog:",
+    "eve": "catalog:",
     "lucide-react": "catalog:",
     "mammoth": "^1.13.0",
     "next": "catalog:",
@@ -66,6 +68,7 @@
     "recharts": "catalog:",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:",
+    "workflow": "catalog:",
     "xlsx": "catalog:",
     "zod": "catalog:"
   },

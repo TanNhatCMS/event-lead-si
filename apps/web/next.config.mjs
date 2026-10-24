@@ -1,4 +1,6 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import { withWorkflow } from 'workflow/next';
+import { withEve } from 'eve/next';
 
 // Create the next-intl plugin with the request config path
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
@@ -75,7 +77,9 @@ const config = {
   typescript: { ignoreBuildErrors: true },
 };
 
-export default withNextIntl(config);
+// withEve (vercel/eve): mount agent ở thư mục `agent/` của app tại
+// /eve/v1/* — xem specs/004-eve-agent. withWorkflow: spec 003.
+export default withEve(withWorkflow(withNextIntl(config)));
 
 function getRemotePatterns() {
   /** @type {import('next').NextConfig['remotePatterns']} */
