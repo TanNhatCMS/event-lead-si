@@ -126,7 +126,8 @@ export class SupabaseSpanExporter implements SpanExporter {
         user_id: typeof rawUserId === 'string' && rawUserId.length > 0 ? rawUserId : null,
         trace_id: span.spanContext().traceId,
         span_id: span.spanContext().spanId,
-        parent_span_id: span.parentSpanId ?? null,
+        // SDK v2: ReadableSpan bỏ parentSpanId, thay bằng parentSpanContext.
+        parent_span_id: span.parentSpanContext?.spanId ?? null,
         name: span.name,
         kind: kindToString(span.kind),
         status_code: statusToString(span.status.code),
