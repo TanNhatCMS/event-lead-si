@@ -1,10 +1,12 @@
 'use client';
 
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef, RowData } from '@tanstack/react-table';
 import {
+  columnVisibilityFeature,
   flexRender,
-  getCoreRowModel,
-  useReactTable,
+  rowSelectionFeature,
+  tableFeatures,
+  useTable,
 } from '@tanstack/react-table';
 
 import { Trans } from '../makerkit/trans';
@@ -17,22 +19,35 @@ import {
   TableRow,
 } from './table';
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
+// TanStack Table v9: core row model la tu dong (khong truyen
+// getCoreRowModel nua). row.getIsSelected() can rowSelectionFeature,
+// row.getVisibleCells() can columnVisibilityFeature. features dinh nghia
+// 1 lan o module scope.
+const features = tableFeatures({
+  columnVisibilityFeature,
+  rowSelectionFeature,
+});
+
+interface DataTableProps<TData extends RowData, TValue> {
+  columns: ColumnDef<typeof features, TData, TValue>[];
   data: TData[];
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData, TValue>({
   columns,
   data,
 }: DataTableProps<TData, TValue>) {
   // TODO: remove when https://github.com/TanStack/table/issues/5567 gets fixed
   'use no memo';
 
-  const table = useReactTable({
+  // v9: CellData = unknown nen option columns cua useTable la
+  // ColumnDef<..., unknown>[]; ColumnDef bat bien theo TValue (vua co vi
+  // tri dong bien vua nghich bien) nen columns generic TValue khong truyen
+  // thang duoc — cast qua any (chi anh huong type, runtime khong doi).
+  const table = useTable({
     data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
+    columns: columns as ColumnDef<typeof features, TData, any>[],
+    features,
   });
 
   return (
