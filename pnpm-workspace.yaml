@@ -52,7 +52,7 @@ catalog:
   react: 19.3.1
   react-day-picker: ^10.0.0
   react-dom: 19.3.1
-  react-dropzone: 15.0.0
+  react-dropzone: 20.1.4
   react-hook-form: ^7.65.0
   react-resizable-panels: 4.14.8
   react-top-loading-bar: 3.0.2
