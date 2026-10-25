@@ -10,6 +10,7 @@ import { Button } from '@kit/ui/button';
 import { If } from '@kit/ui/if';
 import { Trans } from '@kit/ui/trans';
 
+import { LanguageSubMenu, LanguageSwitcher } from '~/components/language-switcher';
 import featuresFlagConfig from '~/config/feature-flags.config';
 import pathsConfig from '~/config/paths.config';
 
@@ -49,13 +50,18 @@ export function SiteHeaderAccountSection() {
   }
 
   return (
-    <PersonalAccountDropdown
-      showProfileName={false}
-      paths={paths}
-      features={features}
-      user={user}
-      signOutRequested={() => signOut.mutateAsync()}
-    />
+    <div className={'flex items-center space-x-2'}>
+      <LanguageSwitcher />
+
+      <PersonalAccountDropdown
+        showProfileName={false}
+        paths={paths}
+        features={features}
+        user={user}
+        signOutRequested={() => signOut.mutateAsync()}
+        extraContent={<LanguageSubMenu />}
+      />
+    </div>
   );
 }
 
@@ -66,6 +72,8 @@ function AuthButtons() {
         <If condition={features.enableThemeToggle}>
           <ModeToggle />
         </If>
+
+        <LanguageSwitcher />
 
         <Button
           nativeButton={false}

@@ -21,7 +21,7 @@ async function CookiePolicyPage() {
       />
 
       <div className={'container mx-auto py-8'}>
-        <div>Your terms of service content here</div>
+        <div>Nội dung chính sách cookie sẽ được cập nhật.</div>
       </div>
     </div>
   );

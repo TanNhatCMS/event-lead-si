@@ -6,6 +6,7 @@ import { PersonalAccountDropdown } from '@kit/accounts/personal-account-dropdown
 import { useSignOut } from '@kit/supabase/hooks/use-sign-out';
 import { useUser } from '@kit/supabase/hooks/use-user';
 
+import { LanguageSubMenu } from '~/components/language-switcher';
 import featuresFlagConfig from '~/config/feature-flags.config';
 import pathsConfig from '~/config/paths.config';
 
@@ -44,6 +45,7 @@ export function ProfileAccountDropdownContainer(props: {
       account={props.account}
       signOutRequested={() => signOut.mutateAsync()}
       showProfileName={props.showProfileName}
+      extraContent={<LanguageSubMenu />}
     />
   );
 }

@@ -1,11 +1,10 @@
-import { getMessages } from 'next-intl/server';
-
 import { routing } from '@kit/i18n/routing';
 import { Toaster } from '@kit/ui/sonner';
 import { cn } from '@kit/ui/utils';
 
 import { RootProviders } from '~/components/root-providers';
 import appConfig from '~/config/app.config';
+import { loadMessagesForAllLocales } from '~/i18n/load-messages';
 import { heading, sans } from '~/lib/fonts';
 import { generateRootMetadata } from '~/lib/root-metdata';
 
@@ -16,9 +15,10 @@ import '../styles/globals.css';
  * cookie, the locale cookie or the session here makes every route in the app
  * dynamic, because nothing below it can prerender until that resolves.
  *
- * `getMessages` is safe to await: the locale is passed explicitly so next-intl
- * never falls back to its `requestLocale` getter, which reads `headers()`. What
- * is left is a set of static JSON imports — async, but not request data.
+ * Loading the messages is safe to await: the locales come from `routing`, so
+ * what is left is a set of static JSON imports — async, but not request data.
+ * Every locale's messages are passed down so the visitor can switch language
+ * on the client — see `i18n/language-provider.tsx` and `i18n/request.ts`.
  *
  * The theme is resolved on the client instead: next-themes runs a script before
  * paint to apply the stored theme. `suppressHydrationWarning` is required
@@ -30,15 +30,15 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const locale = routing.defaultLocale;
-  const messages = await getMessages({ locale });
+  const messagesByLocale = await loadMessagesForAllLocales();
 
   return (
     <html lang={locale} className={getClassName()} suppressHydrationWarning>
       <body>
         <RootProviders
           theme={appConfig.theme}
-          locale={locale}
-          messages={messages}
+          defaultLocale={locale}
+          messagesByLocale={messagesByLocale}
         >
           {children}
 

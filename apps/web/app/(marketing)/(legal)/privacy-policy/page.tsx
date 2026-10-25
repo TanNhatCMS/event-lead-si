@@ -21,7 +21,7 @@ async function PrivacyPolicyPage() {
       />
 
       <div className={'container mx-auto py-8'}>
-        <div>Your terms of service content here</div>
+        <div>Nội dung chính sách bảo mật sẽ được cập nhật.</div>
       </div>
     </div>
   );

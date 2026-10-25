@@ -1,7 +1,7 @@
 import { TriangleAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Alert, AlertDescription, AlertTitle } from '@kit/ui/alert';
-import { Trans } from '@kit/ui/trans';
 
 /**
  * @name AuthErrorAlert
@@ -16,27 +16,27 @@ export function AuthErrorAlert({
 }: {
   error: Error | null | undefined | string;
 }) {
+  const t = useTranslations('auth');
+
   if (!error) {
     return null;
   }
 
-  const DefaultError = <Trans i18nKey="auth.errors.default" />;
   const errorCode = error instanceof Error ? error.message : error;
+  // Mã lỗi không có trong bản dịch (vd lỗi mạng) → dùng message mặc định
+  // thay vì render nguyên văn fallback của <Trans>.
+  const message = t.has(`errors.${errorCode}`)
+    ? t(`errors.${errorCode}`)
+    : t('errors.default');
 
   return (
     <Alert variant={'destructive'}>
       <TriangleAlert className={'w-4'} />
 
-      <AlertTitle>
-        <Trans i18nKey={`auth.errorAlertHeading`} />
-      </AlertTitle>
+      <AlertTitle>{t('errorAlertHeading')}</AlertTitle>
 
       <AlertDescription data-test={'auth-error-message'}>
-        <Trans
-          i18nKey={`auth.errors.${errorCode}`}
-          defaults={'<DefaultError />'}
-          components={{ DefaultError }}
-        />
+        {message}
       </AlertDescription>
     </Alert>
   );

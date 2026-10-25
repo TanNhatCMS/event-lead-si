@@ -5,6 +5,7 @@
       "~/*": ["./app/*"],
       "~/config/*": ["./config/*"],
       "~/components/*": ["./components/*"],
+      "~/i18n/*": ["./i18n/*"],
       "~/lib/*": ["./lib/*"]
     },
     "plugins": [
@@ -21,6 +22,8 @@
     "*.tsx",
     "./config/**/*.ts",
     "components/**/*",
+    "i18n/**/*.ts",
+    "i18n/**/*.tsx",
     "lib/**/*.ts",
     "app"
   ],

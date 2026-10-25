@@ -1,5 +1,5 @@
 import type { PlopTypes } from '@turbo/gen';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 
 export function createPackageGenerator(plop: PlopTypes.NodePlopAPI) {
   plop.setGenerator('package', {
@@ -69,14 +69,19 @@ export function createPackageGenerator(plop: PlopTypes.NodePlopAPI) {
         /**
          * Install deps and format everything
          */
+        const { name } = answers as { name: string };
+        if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) {
+          throw new Error(`Invalid package name: ${name}`);
+        }
         execSync('pnpm manypkg fix', {
           stdio: 'inherit',
         });
-        execSync(
-          `pnpm prettier --write packages/${
-            (answers as { name: string }).name
-          }/** --list-different`,
-        );
+        execFileSync('pnpm', [
+          'prettier',
+          '--write',
+          `packages/${name}/**`,
+          '--list-different',
+        ]);
         return 'Package scaffolded';
       },
     ],

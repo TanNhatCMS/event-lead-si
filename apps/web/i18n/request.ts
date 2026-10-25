@@ -2,22 +2,15 @@
  * App-specific i18n request configuration.
  * Loads translation messages from the app's messages directory.
  *
- * Namespaces live in separate files under `messages/${locale}/`, so adding a
- * namespace means adding a file here and an entry in `namespaces` below.
+ * The namespace list and the per-locale loading logic live in
+ * `load-messages.ts` so the root layout can reuse them to ship every locale's
+ * messages to the client (see the trade-off below).
  */
 import { getRequestConfig } from 'next-intl/server';
 
 import { routing } from '@kit/i18n/routing';
 
-// Define the namespaces to load
-const namespaces = [
-  'common',
-  'auth',
-  'account',
-  'teams',
-  'billing',
-  'marketing',
-] as const;
+import { loadMessages } from './load-messages';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -39,6 +32,18 @@ const isDevelopment = process.env.NODE_ENV === 'development';
  * cookie always resolved to the default anyway. If you add locales, either put
  * the locale in the URL so it can be a route param, or accept that non-default
  * translations arrive with the client bundle.
+ *
+ * This app chose the second option, without URLs changing: the server always
+ * renders the default locale, and `i18n/language-provider.tsx` swaps the locale
+ * **on the client** by feeding the visitor's persisted choice into
+ * `NextIntlClientProvider`. Consequences to keep in mind:
+ *
+ * - Every page whose text must react to the switch renders its translations
+ *   through client components (see the marketing home, footer and auth pages).
+ * - Text baked into server components — including metadata — stays in the
+ *   default locale. `<html lang>` is corrected on the client by the provider.
+ * - The first paint always shows the default locale; the persisted choice is
+ *   restored after hydration.
  */
 export default getRequestConfig(async () => {
   const locale = routing.defaultLocale;
@@ -61,34 +66,3 @@ export default getRequestConfig(async () => {
     },
   };
 });
-
-/**
- * Loads translation messages for all namespaces.
- * Each namespace is loaded from a separate file for better code splitting.
- */
-async function loadMessages(locale: string) {
-  const loadedMessages: Record<string, unknown> = {};
-
-  // Load each namespace file
-  await Promise.all(
-    namespaces.map(async (namespace) => {
-      try {
-        const namespaceMessages = await import(
-          `./messages/${locale}/${namespace}.json`
-        );
-
-        loadedMessages[namespace] = namespaceMessages.default;
-      } catch (error) {
-        console.warn(
-          `Failed to load namespace "${namespace}" for locale "${locale}":`,
-          error,
-        );
-
-        // Set empty object as fallback
-        loadedMessages[namespace] = {};
-      }
-    }),
-  );
-
-  return loadedMessages;
-}

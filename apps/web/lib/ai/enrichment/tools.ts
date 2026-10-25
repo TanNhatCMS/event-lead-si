@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { toolRegistry } from "../tools";
+import { assertEgressAllowed } from "../tools/egress-guard";
 import { webFetchTool } from "../tools/webfetch";
 import { loadEnrichmentMarkdown } from "./load-markdown";
 
@@ -231,7 +232,7 @@ async function searchViaTool(
 ): Promise<WebSearchResultItem[]> {
   const toolUrl = (process.env.SEARCH_TOOL_URL ?? "").trim();
   const toolKey = (process.env.SEARCH_TOOL_KEY ?? "").trim();
-  const res = await fetchWithTimeout(toolUrl, {
+  const res = await fetchWithTimeout((await assertEgressAllowed(toolUrl)).href, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -253,7 +254,7 @@ async function searchViaApi(
   const apiUrl = (process.env.SEARCH_API_URL ?? "").trim();
   const apiKey = (process.env.SEARCH_API_KEY ?? "").trim();
   const keyHeader = (process.env.SEARCH_API_KEY_HEADER ?? "").trim() || "X-API-KEY";
-  const res = await fetchWithTimeout(apiUrl, {
+  const res = await fetchWithTimeout((await assertEgressAllowed(apiUrl)).href, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -272,16 +273,15 @@ async function searchViaFetch(
   query: string,
   maxResults: number,
 ): Promise<WebSearchResultItem[]> {
-  const res = await fetchWithTimeout(
-    `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
-    {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-        "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
-      },
+  const ddgUrl = await assertEgressAllowed("https://html.duckduckgo.com/html/");
+  ddgUrl.searchParams.set("q", query);
+  const res = await fetchWithTimeout(ddgUrl.href, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+      "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
     },
-  );
+  });
   if (!res.ok) {
     throw new Error(`DuckDuckGo trả mã ${res.status}.`);
   }

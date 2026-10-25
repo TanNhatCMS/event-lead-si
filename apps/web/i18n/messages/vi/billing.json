@@ -1,118 +1,118 @@
 {
-  "subscriptionTabSubheading": "Manage your Subscription and Billing",
-  "planCardTitle": "Your Plan",
-  "planCardDescription": "Below are the details of your current plan. You can change your plan or cancel your subscription at any time.",
-  "planRenewal": "Renews every {interval} at {price}",
-  "planDetails": "Plan Details",
-  "checkout": "Proceed to Checkout",
-  "trialEndsOn": "Your trial ends on",
-  "billingPortalCardButton": "Visit Billing Portal",
-  "billingPortalCardTitle": "Manage your Billing Details",
-  "billingPortalCardDescription": "Visit your Billing Portal to manage your subscription and billing. You can update or cancel your plan, or download your invoices.",
-  "cancelAtPeriodEndDescription": "Your subscription is scheduled to be canceled on {endDate}.",
-  "renewAtPeriodEndDescription": "Your subscription is scheduled to be renewed on {endDate}",
-  "noPermissionsAlertHeading": "You don't have permissions to change the billing settings",
-  "noPermissionsAlertBody": "Please contact your account owner to change the billing settings for your account.",
-  "checkoutSuccessTitle": "Done! You're all set.",
-  "checkoutSuccessDescription": "Thank you for subscribing, we have successfully processed your subscription! A confirmation email will be sent to {customerEmail}.",
-  "checkoutSuccessBackButton": "Proceed to App",
-  "cannotManageBillingAlertTitle": "You cannot manage billing",
-  "cannotManageBillingAlertDescription": "You do not have permissions to manage billing. Please contact your account owner.",
-  "manageTeamPlan": "Manage your Team Plan",
-  "manageTeamPlanDescription": "Choose a plan that fits your team's needs. You can upgrade or downgrade your plan at any time.",
-  "basePlan": "Base Plan",
+  "subscriptionTabSubheading": "Quản lý gói đăng ký và thanh toán của bạn",
+  "planCardTitle": "Gói của bạn",
+  "planCardDescription": "Bên dưới là thông tin chi tiết về gói hiện tại của bạn. Bạn có thể đổi gói hoặc hủy đăng ký bất cứ lúc nào.",
+  "planRenewal": "Gia hạn mỗi {interval} với giá {price}",
+  "planDetails": "Chi tiết gói",
+  "checkout": "Tiến hành thanh toán",
+  "trialEndsOn": "Dùng thử của bạn kết thúc vào",
+  "billingPortalCardButton": "Mở cổng thanh toán",
+  "billingPortalCardTitle": "Quản lý thông tin thanh toán",
+  "billingPortalCardDescription": "Truy cập cổng thanh toán để quản lý gói đăng ký và thanh toán. Bạn có thể cập nhật hoặc hủy gói, hoặc tải hóa đơn của mình.",
+  "cancelAtPeriodEndDescription": "Gói đăng ký của bạn được dự kiến hủy vào {endDate}.",
+  "renewAtPeriodEndDescription": "Gói đăng ký của bạn được dự kiến gia hạn vào {endDate}",
+  "noPermissionsAlertHeading": "Bạn không có quyền thay đổi cài đặt thanh toán",
+  "noPermissionsAlertBody": "Vui lòng liên hệ chủ tài khoản để thay đổi cài đặt thanh toán.",
+  "checkoutSuccessTitle": "Xong! Bạn đã sẵn sàng.",
+  "checkoutSuccessDescription": "Cảm ơn bạn đã đăng ký, chúng tôi đã xử lý gói đăng ký của bạn thành công! Một email xác nhận sẽ được gửi đến {customerEmail}.",
+  "checkoutSuccessBackButton": "Vào ứng dụng",
+  "cannotManageBillingAlertTitle": "Bạn không thể quản lý thanh toán",
+  "cannotManageBillingAlertDescription": "Bạn không có quyền quản lý thanh toán. Vui lòng liên hệ chủ tài khoản.",
+  "manageTeamPlan": "Quản lý gói của nhóm",
+  "manageTeamPlanDescription": "Chọn gói phù hợp với nhu cầu của nhóm. Bạn có thể nâng cấp hoặc hạ cấp gói bất cứ lúc nào.",
+  "basePlan": "Gói cơ bản",
   "billingInterval": {
-    "label": "Choose your billing interval",
-    "month": "Billed monthly",
-    "year": "Billed yearly"
+    "label": "Chọn chu kỳ thanh toán",
+    "month": "Thanh toán hàng tháng",
+    "year": "Thanh toán hàng năm"
   },
-  "perMonth": "per month",
-  "custom": "Custom Plan",
-  "lifetime": "Lifetime",
-  "trialPeriod": "{period} day trial",
-  "perPeriod": "per {period}",
-  "redirectingToPayment": "Redirecting to checkout. Please wait...",
-  "proceedToPayment": "Proceed to Payment",
-  "startTrial": "Start Trial",
-  "perTeamMember": "Per team member",
-  "perUnit": "Per {unit} usage",
-  "teamMembers": "Team Members",
-  "includedUpTo": "Up to {upTo} {unit} included in the plan",
-  "fromPreviousTierUpTo": "for each {unit} for the next {upTo} {unit}",
-  "andAbove": "above {previousTier} {unit}",
-  "forEveryUnit": "for every {unit}",
-  "setupFee": "plus a {setupFee} setup fee",
-  "perUnitIncluded": "({included} included)",
-  "featuresLabel": "Features",
-  "detailsLabel": "Details",
-  "planPickerLabel": "Pick your preferred plan",
-  "planCardLabel": "Manage your Plan",
-  "planPickerAlertErrorTitle": "Error requesting checkout",
-  "planPickerAlertErrorDescription": "There was an error requesting checkout. Please try again later.",
-  "subscriptionCancelled": "Subscription Cancelled",
-  "cancelSubscriptionDate": "Your subscription will be cancelled at the end of the period",
-  "noPlanChosen": "Please choose a plan",
-  "noIntervalPlanChosen": "Please choose a billing interval",
+  "perMonth": "mỗi tháng",
+  "custom": "Gói tùy chỉnh",
+  "lifetime": "Trọn đời",
+  "trialPeriod": "Dùng thử {period} ngày",
+  "perPeriod": "mỗi {period}",
+  "redirectingToPayment": "Đang chuyển đến trang thanh toán. Vui lòng đợi...",
+  "proceedToPayment": "Tiến hành thanh toán",
+  "startTrial": "Bắt đầu dùng thử",
+  "perTeamMember": "Mỗi thành viên nhóm",
+  "perUnit": "Mỗi {unit} sử dụng",
+  "teamMembers": "Thành viên nhóm",
+  "includedUpTo": "Bao gồm tối đa {upTo} {unit} trong gói",
+  "fromPreviousTierUpTo": "cho mỗi {unit} với {upTo} {unit} tiếp theo",
+  "andAbove": "trên {previousTier} {unit}",
+  "forEveryUnit": "cho mỗi {unit}",
+  "setupFee": "cộng thêm phí thiết lập {setupFee}",
+  "perUnitIncluded": "({included} bao gồm)",
+  "featuresLabel": "Tính năng",
+  "detailsLabel": "Chi tiết",
+  "planPickerLabel": "Chọn gói bạn muốn dùng",
+  "planCardLabel": "Quản lý gói của bạn",
+  "planPickerAlertErrorTitle": "Lỗi khi yêu cầu thanh toán",
+  "planPickerAlertErrorDescription": "Đã xảy ra lỗi khi yêu cầu thanh toán. Vui lòng thử lại sau.",
+  "subscriptionCancelled": "Đã hủy gói đăng ký",
+  "cancelSubscriptionDate": "Gói đăng ký của bạn sẽ bị hủy vào cuối kỳ",
+  "noPlanChosen": "Vui lòng chọn một gói",
+  "noIntervalPlanChosen": "Vui lòng chọn chu kỳ thanh toán",
   "status": {
     "free": {
-      "badge": "Free Plan",
-      "heading": "You are currently on the Free Plan",
-      "description": "You're on a free plan. You can upgrade to a paid plan at any time."
+      "badge": "Gói miễn phí",
+      "heading": "Bạn đang dùng Gói miễn phí",
+      "description": "Bạn đang dùng gói miễn phí. Bạn có thể nâng cấp lên gói trả phí bất cứ lúc nào."
     },
     "active": {
-      "badge": "Active",
-      "heading": "Your subscription is active",
-      "description": "Your subscription is active. You can manage your subscription and billing in the Customer Portal."
+      "badge": "Đang hoạt động",
+      "heading": "Gói đăng ký của bạn đang hoạt động",
+      "description": "Gói đăng ký của bạn đang hoạt động. Bạn có thể quản lý đăng ký và thanh toán trong Cổng khách hàng."
     },
     "trialing": {
-      "badge": "Trial",
-      "heading": "You're on a trial",
-      "description": "You can enjoy the benefits of plan until the trial ends"
+      "badge": "Dùng thử",
+      "heading": "Bạn đang dùng thử",
+      "description": "Bạn có thể tận hưởng các quyền lợi của gói cho đến khi hết thời gian dùng thử"
     },
     "past_due": {
-      "badge": "Past Due",
-      "heading": "Your invoice is past due",
-      "description": "Your invoice is past due. Please update your payment method."
+      "badge": "Quá hạn",
+      "heading": "Hóa đơn của bạn đã quá hạn thanh toán",
+      "description": "Hóa đơn của bạn đã quá hạn. Vui lòng cập nhật phương thức thanh toán."
     },
     "canceled": {
-      "badge": "Canceled",
-      "heading": "Your subscription is canceled",
-      "description": "Your subscription is canceled. It is scheduled to end at end of the billing period."
+      "badge": "Đã hủy",
+      "heading": "Gói đăng ký của bạn đã bị hủy",
+      "description": "Gói đăng ký của bạn đã bị hủy. Nó sẽ kết thúc vào cuối kỳ thanh toán."
     },
     "unpaid": {
-      "badge": "Unpaid",
-      "heading": "Your invoice is unpaid",
-      "description": "Your invoice is unpaid. Please update your payment method."
+      "badge": "Chưa thanh toán",
+      "heading": "Hóa đơn của bạn chưa được thanh toán",
+      "description": "Hóa đơn của bạn chưa được thanh toán. Vui lòng cập nhật phương thức thanh toán."
     },
     "incomplete": {
-      "badge": "Incomplete",
-      "heading": "We're waiting for your payment",
-      "description": "We're waiting for your payment to go through. Please bear with us."
+      "badge": "Chưa hoàn tất",
+      "heading": "Chúng tôi đang chờ thanh toán của bạn",
+      "description": "Chúng tôi đang chờ thanh toán của bạn được xử lý. Vui lòng đợi trong giây lát."
     },
     "incomplete_expired": {
-      "badge": "Expired",
-      "heading": "Your payment has expired",
-      "description": "Your payment has expired. Please update your payment method."
+      "badge": "Đã hết hạn",
+      "heading": "Thanh toán của bạn đã hết hạn",
+      "description": "Thanh toán của bạn đã hết hạn. Vui lòng cập nhật phương thức thanh toán."
     },
     "paused": {
-      "badge": "Paused",
-      "heading": "Your subscription is paused",
-      "description": "Your subscription is paused. You can resume it at any time."
+      "badge": "Tạm dừng",
+      "heading": "Gói đăng ký của bạn đang tạm dừng",
+      "description": "Gói đăng ký của bạn đang tạm dừng. Bạn có thể tiếp tục bất cứ lúc nào."
     },
     "succeeded": {
-      "badge": "Succeeded",
-      "heading": "Your payment was successful",
-      "description": "Your payment was successful. Thank you for subscribing!"
+      "badge": "Thành công",
+      "heading": "Thanh toán của bạn đã thành công",
+      "description": "Thanh toán của bạn đã thành công. Cảm ơn bạn đã đăng ký!"
     },
     "pending": {
-      "badge": "Pending",
-      "heading": "Your payment is pending",
-      "description": "Your payment is pending. Please bear with us."
+      "badge": "Đang chờ",
+      "heading": "Thanh toán của bạn đang chờ xử lý",
+      "description": "Thanh toán của bạn đang chờ xử lý. Vui lòng đợi trong giây lát."
     },
     "failed": {
-      "badge": "Failed",
-      "heading": "Your payment failed",
-      "description": "Your payment failed. Please update your payment method."
+      "badge": "Thất bại",
+      "heading": "Thanh toán của bạn thất bại",
+      "description": "Thanh toán của bạn thất bại. Vui lòng cập nhật phương thức thanh toán."
     }
   }
 }

@@ -19,33 +19,32 @@ export const generateMetadata = async () => {
 async function FAQPage() {
   const t = await getTranslations();
 
-  // replace this content with translations
+  // Nội dung FAQ mặc định render theo ngôn ngữ mặc định (vi) — bản dịch Text
+  // key nếu muốn chuyển sang i18n keys sau này (Trans dùng defaults khi thiếu key).
   const faqItems = [
     {
-      // or: t('marketing.faq.question1')
-      question: `Do you offer a free trial?`,
-      // or: t('marketing.faq.answer1')
-      answer: `Yes, we offer a 14-day free trial. You can cancel at any time during the trial period and you won't be charged.`,
+      question: `EventLead là gì?`,
+      answer: `EventLead là công cụ quản lý khách hàng tiềm năng tại sự kiện: quét danh thiếp, quản lý danh bạ, làm giàu dữ liệu bằng AI và theo dõi quan hệ.`,
     },
     {
-      question: `Can I cancel my subscription?`,
-      answer: `You can cancel your subscription at any time. You can do this from your account settings.`,
+      question: `Quét danh thiếp hoạt động thế nào?`,
+      answer: `Bạn chụp ảnh danh thiếp, AI sẽ tự động trích xuất họ tên, công ty, email, số điện thoại và lưu vào danh bạ — kèm kiểm tra trùng lặp.`,
     },
     {
-      question: `Where can I find my invoices?`,
-      answer: `You can find your invoices in your account settings.`,
+      question: `Dữ liệu danh bạ của tôi lưu ở đâu?`,
+      answer: `Dữ liệu được lưu an toàn trong tài khoản của bạn và chỉ mình bạn có thể xem. Bạn có thể xuất danh bạ ra file CSV bất cứ lúc nào.`,
     },
     {
-      question: `What payment methods do you accept?`,
-      answer: `We accept all major credit cards and PayPal.`,
+      question: `Trợ lý AI có thể giúp gì?`,
+      answer: `Trợ lý AI trả lời câu hỏi về khách hàng tiềm năng của bạn dựa trên dữ liệu bạn đã lưu, soạn thư theo dõi và gợi ý cách tiếp cận.`,
     },
     {
-      question: `Can I upgrade or downgrade my plan?`,
-      answer: `Yes, you can upgrade or downgrade your plan at any time. You can do this from your account settings.`,
+      question: `Tôi có cần thẻ tín dụng để bắt đầu không?`,
+      answer: `Không. Bạn có thể tạo tài khoản và dùng thử EventLead ngay mà không cần thẻ tín dụng.`,
     },
     {
-      question: `Do you offer discounts for non-profits?`,
-      answer: `Yes, we offer a 50% discount for non-profits. Please contact us to learn more.`,
+      question: `Làm sao để liên hệ hỗ trợ?`,
+      answer: `Bạn có thể gửi câu hỏi qua trang Liên hệ — chúng tôi thường phản hồi trong vòng một ngày làm việc.`,
     },
   ];
 

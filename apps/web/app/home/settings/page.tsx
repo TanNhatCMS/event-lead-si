@@ -6,6 +6,7 @@ import { PersonalAccountSettingsContainer } from '@kit/accounts/personal-account
 import { PageBody } from '@kit/ui/page';
 import { Skeleton } from '@kit/ui/skeleton';
 
+import { LanguageSelect } from '~/components/language-switcher';
 import { Delayed } from '~/components/skeletons/page-skeletons';
 import authConfig from '~/config/auth.config';
 import pathsConfig from '~/config/paths.config';
@@ -51,6 +52,10 @@ async function AccountSettings() {
       userId={user.id}
       paths={paths}
       features={features}
+      // The kit's LanguageSelector switches via a locale path segment, which
+      // this app does not have — use the client-side switcher instead (see
+      // `~/i18n/language-provider.tsx`).
+      languageSelector={<LanguageSelect />}
     />
   );
 }
