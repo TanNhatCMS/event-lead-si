@@ -8,7 +8,7 @@ catalog:
   '@hookform/resolvers': ^6.0.0
   ai: 7.0.150
   eve: 0.83.0
-  react-easy-crop: 5.5.7
+  react-easy-crop: 6.2.4
   '@makerkit/data-loader-supabase-core': ^0.0.10
   '@makerkit/data-loader-supabase-nextjs': ^1.2.5
   '@manypkg/cli': ^0.25.1
