@@ -255,8 +255,8 @@ catalogs:
       specifier: 8.6.0
       version: 8.6.0
     eve:
-      specifier: 0.83.0
-      version: 0.83.0
+      specifier: 0.83.2
+      version: 0.83.2
     input-otp:
       specifier: 1.5.0
       version: 1.5.0
@@ -471,7 +471,7 @@ importers:
         version: 4.4.0
       eve:
         specifier: 'catalog:'
-        version: 0.83.0(@opentelemetry/api@1.10.0)(ai@7.0.153(zod@4.6.7))
+        version: 0.83.2(@opentelemetry/api@1.10.0)(ai@7.0.153(zod@4.6.7))
       lucide-react:
         specifier: 'catalog:'
         version: 1.61.0(@types/react@19.3.0)(react@19.3.1)
@@ -4496,8 +4496,8 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
-  eve@0.83.0:
-    resolution: {integrity: sha512-qxw8Ck/vBrfIAqgodalXKkpE86eDcydNaJ2ww2AiHVs7CgGCu5qSipr5vOSc4GXkDssbJ9DaV4iVtol2kwV8Hg==}
+  eve@0.83.2:
+    resolution: {integrity: sha512-NiAHLbmq0etahDN8BKpmwLr8gZrILMq9XSGne8u+DCqdCTxSJBcDCkdvB+8XaHxgCrWLyH8igrqeS1mg5R6bVQ==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -10088,7 +10088,7 @@ snapshots:
 
   etag@1.8.1: {}
 
-  eve@0.83.0(@opentelemetry/api@1.10.0)(ai@7.0.153(zod@4.6.7)):
+  eve@0.83.2(@opentelemetry/api@1.10.0)(ai@7.0.153(zod@4.6.7)):
     dependencies:
       ai: 7.0.153(zod@4.6.7)
       nitro: 3.0.260903-beta
