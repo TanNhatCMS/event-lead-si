@@ -3,12 +3,12 @@ packages:
   - packages/**
   - tooling/*
 catalog:
-  '@ai-sdk/openai': 4.0.101
-  '@ai-sdk/react': 4.0.154
+  '@ai-sdk/openai': 4.0.102
+  '@ai-sdk/react': 4.0.157
   '@hookform/resolvers': ^6.0.0
-  ai: 7.0.150
-  eve: 0.83.0
-  react-easy-crop: 5.5.7
+  ai: 7.0.153
+  eve: 0.83.2
+  react-easy-crop: 6.2.4
   '@makerkit/data-loader-supabase-core': ^0.0.10
   '@makerkit/data-loader-supabase-nextjs': ^1.2.5
   '@manypkg/cli': ^0.25.1
@@ -20,7 +20,7 @@ catalog:
   '@supabase/supabase-js': 2.118.0
   '@tailwindcss/postcss': ^4.1.14
   '@tanstack/react-query': 5.104.5
-  '@tanstack/react-table': ^8.21.3
+  '@tanstack/react-table': ^9.0.0
   '@turbo/gen': ^2.5.8
   '@types/mdx': ^2.0.13
   '@types/node': ^24.13.3
@@ -33,7 +33,7 @@ catalog:
   cmdk: 1.1.1
   cross-env: ^10.1.0
   date-fns: ^4.1.0
-  dotenv-cli: ^10.0.0
+  dotenv-cli: ^11.0.0
   embla-carousel-react: 8.6.0
   input-otp: 1.5.0
   lucide-react: ^1.28.0
@@ -44,15 +44,15 @@ catalog:
   next-safe-action: 8.7.3
   next-sitemap: ^4.2.3
   next-themes: 0.4.6
-  node-html-parser: ^7.0.1
+  node-html-parser: ^9.0.0
   oxfmt: ^0.74.0
   oxlint: ^1.76.0
   pino: ^10.0.0
   pino-pretty: 13.2.0
   react: 19.3.1
-  react-day-picker: ^9.11.1
+  react-day-picker: ^10.0.0
   react-dom: 19.3.1
-  react-dropzone: 15.0.0
+  react-dropzone: 20.1.4
   react-hook-form: ^7.65.0
   react-resizable-panels: 4.15.0
   react-top-loading-bar: 3.0.2

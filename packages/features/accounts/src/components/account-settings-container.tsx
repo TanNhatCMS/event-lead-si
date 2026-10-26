@@ -22,8 +22,10 @@ import { UpdateAccountDetailsFormContainer } from './update-account-details-form
 import { UpdateAccountImageContainer } from './update-account-image-container';
 
 /**
- * The kit ships a single locale, so the language card is hidden until more are
- * added in `packages/i18n/src/locales.ts`.
+ * The kit's default language control switches via a `[locale]` path segment or
+ * the `lang` cookie read by the server. Apps that resolve the locale on the
+ * client (no locale segment — see `apps/web/i18n/request.ts`) should pass their
+ * own control through `languageSelector`.
  */
 const supportsLanguageSelection = routing.locales.length > 1;
 
@@ -39,6 +41,12 @@ export function PersonalAccountSettingsContainer(
     paths: {
       callback: string;
     };
+
+    /**
+     * Optional replacement for the kit's `LanguageSelector` in the language
+     * card. Rendered only when more than one locale is configured.
+     */
+    languageSelector?: React.ReactNode;
   }>,
 ) {
   const user = usePersonalAccountData(props.userId);
@@ -99,7 +107,9 @@ export function PersonalAccountSettingsContainer(
           </CardHeader>
 
           <CardContent>
-            <LanguageSelector locales={routing.locales} />
+            {props.languageSelector ?? (
+              <LanguageSelector locales={routing.locales} />
+            )}
           </CardContent>
         </Card>
       </If>

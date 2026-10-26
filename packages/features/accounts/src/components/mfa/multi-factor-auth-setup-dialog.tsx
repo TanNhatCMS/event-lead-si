@@ -425,6 +425,10 @@ function FactorNameForm(
 }
 
 function QrImage({ src }: { src: string }) {
+  if (!src.startsWith('data:image/svg+xml;utf-8,')) {
+    return null;
+  }
+
   return (
     <img
       alt={'QR Code'}

@@ -31,6 +31,7 @@ export function PersonalAccountDropdown({
   paths,
   features,
   account,
+  extraContent,
 }: {
   user: JwtPayload;
 
@@ -51,6 +52,12 @@ export function PersonalAccountDropdown({
   };
 
   showProfileName?: boolean;
+
+  /**
+   * Optional items rendered inside the menu, above the sign-out action —
+   * used by apps to inject their own controls (e.g. a language switcher).
+   */
+  extraContent?: React.ReactNode;
 
   className?: string;
 }) {
@@ -153,6 +160,13 @@ export function PersonalAccountDropdown({
         <If condition={features.enableThemeToggle}>
           <SubMenuModeToggle />
         </If>
+
+        {extraContent ? (
+          <>
+            <DropdownMenuSeparator />
+            {extraContent}
+          </>
+        ) : null}
 
         <DropdownMenuSeparator />
 

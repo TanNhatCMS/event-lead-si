@@ -1,5 +1,9 @@
-import { SpanStatusCode } from '@opentelemetry/api';
-import { BasicTracerProvider, InMemorySpanExporter } from '@opentelemetry/sdk-trace-base';
+import { SpanStatusCode, trace } from '@opentelemetry/api';
+import {
+  BasicTracerProvider,
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+} from '@opentelemetry/sdk-trace-base';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { endSpanError, endSpanOk, startUserSpan, USER_ID_ATTR } from '../trace';
@@ -9,20 +13,21 @@ let provider: BasicTracerProvider;
 
 beforeEach(() => {
   exporter = new InMemorySpanExporter();
-  provider = new BasicTracerProvider();
-  provider.addSpanProcessor({
-    onStart: () => {},
-    onEnd: (span) => exporter.export([span], () => {}),
-    shutdown: async () => {},
-    forceFlush: async () => {},
+  // SDK v2: BasicTracerProvider không còn addSpanProcessor()/register() —
+  // processor truyền qua constructor, đăng ký global qua API trace.
+  provider = new BasicTracerProvider({
+    // SimpleSpanProcessor của sdk-trace-base giữ signature cũ: nhận exporter trực tiếp.
+    spanProcessors: [new SimpleSpanProcessor(exporter)],
   });
   // Đăng ký provider này làm global để trace.getTracer('eventlead-web')
   // trong lib/otel/trace.ts tạo span qua nó.
-  provider.register();
+  trace.setGlobalTracerProvider(provider);
 });
 
 afterEach(async () => {
   await provider.shutdown();
+  // Gỡ global để test sau đăng ký được provider mới của nó.
+  trace.disable();
 });
 
 /** Lấy span duy nhất đã export (test nào cũng chỉ tạo đúng 1 span). */

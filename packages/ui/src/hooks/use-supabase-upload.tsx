@@ -112,10 +112,14 @@ export const useSupabaseUpload = (options: UseSupabaseUploadOptions) => {
         });
 
       const invalidFiles = fileRejections.map(({ file, errors }) => {
-        (file as FileWithPreview).preview = URL.createObjectURL(file);
-        (file as FileWithPreview).errors = errors;
+        // react-dropzone v20: FileRejection.file là FileWithPath, không còn
+        // cast trực tiếp sang FileWithPreview được (thiếu `errors`) — cast
+        // qua unknown rồi gán preview/errors ngay sau đó như trước.
+        const fileWithPreview = file as unknown as FileWithPreview;
+        fileWithPreview.preview = URL.createObjectURL(file);
+        fileWithPreview.errors = errors;
 
-        return file as FileWithPreview;
+        return fileWithPreview;
       });
 
       const newFiles = [...files, ...validFiles, ...invalidFiles];

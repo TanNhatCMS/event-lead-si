@@ -5,21 +5,30 @@ import { Fragment, useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import {
-  Cell,
+  columnFilteringFeature,
+  columnPinningFeature,
+  columnSizingFeature,
+  columnVisibilityFeature,
+  createSortedRowModel,
   flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  tableFeatures,
+  useTable,
 } from '@tanstack/react-table';
 import type {
+  Cell,
   ColumnDef,
   ColumnFiltersState,
   ColumnPinningState,
+  ColumnVisibilityState,
   PaginationState,
-  Table as ReactTable,
+  ReactTable,
+  RowData,
+  RowSelectionState,
   Row,
   SortingState,
-  VisibilityState,
 } from '@tanstack/react-table';
 import {
   ChevronDown,
@@ -45,21 +54,42 @@ import { Trans } from './trans';
 
 type DataItem = Record<string, unknown> | object;
 
+// TanStack Table v9: features phai khai bao tuong minh (thay cho
+// useReactTable + get*RowModel cua v8). Chi dang ky dung feature bang nay
+// dung, dinh nghia 1 lan o module scope de type ColumnDef/Row/Cell/Table
+// suy ra tu typeof dataTableFeatures va identity on dinh qua cac render.
+// KHONG dang ky paginatedRowModel (manualPagination: du lieu da la 1 trang
+// tu server, cat slice nua la sai) va khong dang ky filteredRowModel
+// (khong co UI loc, giong v8 khong co getFilteredRowModel).
+// sortedRowModel phuc vu truong hop manualSorting=false (sap xep client).
+const dataTableFeatures = tableFeatures({
+  columnFilteringFeature,
+  columnPinningFeature,
+  columnSizingFeature,
+  columnVisibilityFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  rowSortingFeature,
+  sortedRowModel: createSortedRowModel(),
+});
+
+type DataTableFeatures = typeof dataTableFeatures;
+
 export {
   ColumnDef,
   ColumnFiltersState,
   ColumnPinningState,
+  ColumnVisibilityState,
   PaginationState,
   Row,
   SortingState,
-  VisibilityState,
   flexRender,
 };
 
 interface ReactTableProps<T extends DataItem> {
   data: T[];
-  columns: ColumnDef<T>[];
-  renderSubComponent?: (props: { row: Row<T> }) => React.ReactElement;
+  columns: ColumnDef<DataTableFeatures, T>[];
+  renderSubComponent?: (props: { row: Row<DataTableFeatures, T> }) => React.ReactElement;
   pageIndex?: number;
   className?: string;
   headerClassName?: string;
@@ -67,26 +97,29 @@ interface ReactTableProps<T extends DataItem> {
   pageSize?: number;
   pageCount?: number;
   sorting?: SortingState;
-  columnVisibility?: VisibilityState;
+  columnVisibility?: ColumnVisibilityState;
   columnPinning?: ColumnPinningState;
-  rowSelection?: Record<string, boolean>;
+  rowSelection?: RowSelectionState;
   getRowId?: (row: T) => string;
   onPaginationChange?: (pagination: PaginationState) => void;
   onSortingChange?: (sorting: SortingState) => void;
-  onColumnVisibilityChange?: (visibility: VisibilityState) => void;
+  onColumnVisibilityChange?: (visibility: ColumnVisibilityState) => void;
   onColumnPinningChange?: (pinning: ColumnPinningState) => void;
-  onRowSelectionChange?: (selection: Record<string, boolean>) => void;
-  onClick?: (props: { row: Row<T>; cell: Cell<T, unknown> }) => void;
+  onRowSelectionChange?: (selection: RowSelectionState) => void;
+  onClick?: (props: {
+    row: Row<DataTableFeatures, T>;
+    cell: Cell<DataTableFeatures, T, unknown>;
+  }) => void;
   tableProps?: React.ComponentProps<typeof Table> &
     Record<`data-${string}`, string>;
   sticky?: boolean;
   renderCell?: (props: {
-    cell: Cell<T, unknown>;
+    cell: Cell<DataTableFeatures, T, unknown>;
     style?: React.CSSProperties;
     className?: string;
   }) => (props: React.PropsWithChildren<object>) => React.ReactNode;
   renderRow?: (props: {
-    row: Row<T>;
+    row: Row<DataTableFeatures, T>;
   }) => (props: React.PropsWithChildren<object>) => React.ReactNode;
   noResultsMessage?: React.ReactNode;
   forcePagination?: boolean; // Force pagination to show even when pageCount <= 1
@@ -134,11 +167,11 @@ export function DataTable<RecordData extends DataItem>({
 
   // Internal states for uncontrolled mode
   const [internalColumnVisibility, setInternalColumnVisibility] =
-    useState<VisibilityState>(controlledColumnVisibility ?? {});
+    useState<ColumnVisibilityState>(controlledColumnVisibility ?? {});
 
   const [internalColumnPinning, setInternalColumnPinning] =
     useState<ColumnPinningState>(
-      controlledColumnPinning ?? { left: [], right: [] },
+      controlledColumnPinning ?? { start: [], end: [] },
     );
 
   const [internalRowSelection, setInternalRowSelection] = useState(
@@ -149,12 +182,11 @@ export function DataTable<RecordData extends DataItem>({
 
   const navigateToPage = useNavigateToNewPage();
 
-  const table = useReactTable({
+  const table = useTable({
     data,
     getRowId,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    features: dataTableFeatures,
     enableColumnPinning: true,
     enableRowSelection: true,
     manualPagination: true,
@@ -317,21 +349,21 @@ export function DataTable<RecordData extends DataItem>({
                 const isPinned = header.column.getIsPinned();
                 const size = header.column.getSize();
 
-                // Calculate proper left offset for left-pinned columns
+                // Calculate proper left offset for start-pinned columns
                 const left =
-                  isPinned === 'left'
+                  isPinned === 'start'
                     ? headerGroup.headers
                         .slice(0, index)
-                        .filter((h) => h.column.getIsPinned() === 'left')
+                        .filter((h) => h.column.getIsPinned() === 'start')
                         .reduce((acc, h) => acc + h.column.getSize(), 0)
                     : undefined;
 
-                // Calculate right offset for right-pinned columns
+                // Calculate right offset for end-pinned columns
                 const right =
-                  isPinned === 'right'
+                  isPinned === 'end'
                     ? headerGroup.headers
                         .slice(index + 1)
-                        .filter((h) => h.column.getIsPinned() === 'right')
+                        .filter((h) => h.column.getIsPinned() === 'end')
                         .reduce((acc, h) => acc + h.column.getSize(), 0)
                     : undefined;
 
@@ -340,8 +372,8 @@ export function DataTable<RecordData extends DataItem>({
                     className={cn(
                       'text-muted-foreground bg-background/80 border-transparent font-sans font-medium',
                       {
-                        ['border-r-background border-r']: isPinned === 'left',
-                        ['border-l-background border-l']: isPinned === 'right',
+                        ['border-r-background border-r']: isPinned === 'start',
+                        ['border-l-background border-l']: isPinned === 'end',
                         ['sticky top-0 z-10 opacity-95 backdrop-blur-sm']:
                           isPinned,
                         ['relative z-0']: !isPinned,
@@ -416,23 +448,23 @@ export function DataTable<RecordData extends DataItem>({
               const isPinned = cell.column.getIsPinned();
               const size = cell.column.getSize();
 
-              // Calculate proper left offset for left-pinned columns
+              // Calculate proper left offset for start-pinned columns
               const left =
-                isPinned === 'left'
+                isPinned === 'start'
                   ? row
                       .getVisibleCells()
                       .slice(0, index)
-                      .filter((c) => c.column.getIsPinned() === 'left')
+                      .filter((c) => c.column.getIsPinned() === 'start')
                       .reduce((acc, c) => acc + c.column.getSize(), 0)
                   : undefined;
 
-              // Calculate right offset for right-pinned columns
+              // Calculate right offset for end-pinned columns
               const right =
-                isPinned === 'right'
+                isPinned === 'end'
                   ? row
                       .getVisibleCells()
                       .slice(index + 1)
-                      .filter((c) => c.column.getIsPinned() === 'right')
+                      .filter((c) => c.column.getIsPinned() === 'end')
                       .reduce((acc, c) => acc + c.column.getSize(), 0)
                   : undefined;
 
@@ -443,9 +475,9 @@ export function DataTable<RecordData extends DataItem>({
                 'border-transparent',
                 {
                   ['bg-background/90 border-r-border group-hover/row:bg-muted/50 sticky z-[1] border-r opacity-95 backdrop-blur-sm']:
-                    isPinned === 'left',
+                    isPinned === 'start',
                   ['bg-background/90 border-l-border group-hover/row:bg-muted/50 sticky z-[1] border-l opacity-95 backdrop-blur-sm']:
-                    isPinned === 'right',
+                    isPinned === 'end',
                   ['relative z-0']: !isPinned,
                 },
               );
@@ -524,16 +556,16 @@ export function DataTable<RecordData extends DataItem>({
   );
 }
 
-function Pagination<T>({
+function Pagination<T extends RowData>({
   table,
   totalCount,
 }: React.PropsWithChildren<{
-  table: ReactTable<T>;
+  table: ReactTable<DataTableFeatures, T>;
   totalCount?: number;
   pageSize?: number;
 }>) {
-  const currentPageIndex = table.getState().pagination.pageIndex;
-  const currentPageSize = table.getState().pagination.pageSize;
+  const currentPageIndex = table.state.pagination.pageIndex;
+  const currentPageSize = table.state.pagination.pageSize;
   const rows = table.getRowModel().rows;
 
   // Calculate what records are being shown on this page
@@ -635,17 +667,17 @@ function useNavigateToNewPage(
  * @example
  * ```tsx
  * const columnPinning = useColumnPinning({
- *   defaultPinning: { left: ['select'], right: ['actions'] }
+ *   defaultPinning: { start: ['select'], end: ['actions'] }
  * });
  *
- * // Pin a column to the left
- * columnPinning.toggleColumnPin('name', 'left');
+ * // Pin a column to the start
+ * columnPinning.toggleColumnPin('name', 'start');
  *
  * // Unpin a column
  * columnPinning.toggleColumnPin('name');
  *
  * // Check if column is pinned
- * const side = columnPinning.isColumnPinned('name'); // 'left' | 'right' | false
+ * const side = columnPinning.isColumnPinned('name'); // 'start' | 'end' | false
  * ```
  */
 export function useColumnPinning({
@@ -656,33 +688,33 @@ export function useColumnPinning({
   onPinningChange?: (pinning: ColumnPinningState) => void;
 }) {
   const [columnPinning, setColumnPinning] = useState<ColumnPinningState>(
-    defaultPinning ?? { left: [], right: [] },
+    defaultPinning ?? { start: [], end: [] },
   );
 
   const toggleColumnPin = useCallback(
-    (columnId: string, side?: 'left' | 'right') => {
+    (columnId: string, side?: 'start' | 'end') => {
       setColumnPinning((prev) => {
         const newPinning = { ...prev };
-        const leftColumns = [...(newPinning.left || [])];
-        const rightColumns = [...(newPinning.right || [])];
+        const startColumns = [...(newPinning.start || [])];
+        const endColumns = [...(newPinning.end || [])];
 
         // Remove column from both sides first
-        const leftIndex = leftColumns.indexOf(columnId);
-        const rightIndex = rightColumns.indexOf(columnId);
+        const startIndex = startColumns.indexOf(columnId);
+        const endIndex = endColumns.indexOf(columnId);
 
-        if (leftIndex > -1) leftColumns.splice(leftIndex, 1);
-        if (rightIndex > -1) rightColumns.splice(rightIndex, 1);
+        if (startIndex > -1) startColumns.splice(startIndex, 1);
+        if (endIndex > -1) endColumns.splice(endIndex, 1);
 
         // Add to the specified side if provided
-        if (side === 'left') {
-          leftColumns.push(columnId);
-        } else if (side === 'right') {
-          rightColumns.push(columnId);
+        if (side === 'start') {
+          startColumns.push(columnId);
+        } else if (side === 'end') {
+          endColumns.push(columnId);
         }
 
         const updated = {
-          left: leftColumns,
-          right: rightColumns,
+          start: startColumns,
+          end: endColumns,
         };
 
         if (onPinningChange) {
@@ -696,9 +728,9 @@ export function useColumnPinning({
   );
 
   const isColumnPinned = useCallback(
-    (columnId: string): 'left' | 'right' | false => {
-      if (columnPinning.left?.includes(columnId)) return 'left';
-      if (columnPinning.right?.includes(columnId)) return 'right';
+    (columnId: string): 'start' | 'end' | false => {
+      if (columnPinning.start?.includes(columnId)) return 'start';
+      if (columnPinning.end?.includes(columnId)) return 'end';
 
       return false;
     },
@@ -706,7 +738,7 @@ export function useColumnPinning({
   );
 
   const resetPinning = useCallback(() => {
-    const defaultState = defaultPinning ?? { left: [], right: [] };
+    const defaultState = defaultPinning ?? { start: [], end: [] };
     setColumnPinning(defaultState);
 
     if (onPinningChange) {
@@ -752,12 +784,11 @@ export function useColumnVisibility({
   defaultVisibility,
   onVisibilityChange,
 }: {
-  defaultVisibility?: VisibilityState;
-  onVisibilityChange?: (visibility: VisibilityState) => void;
+  defaultVisibility?: ColumnVisibilityState;
+  onVisibilityChange?: (visibility: ColumnVisibilityState) => void;
 }) {
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
-    defaultVisibility ?? {},
-  );
+  const [columnVisibility, setColumnVisibility] =
+    useState<ColumnVisibilityState>(defaultVisibility ?? {});
 
   const toggleColumnVisibility = useCallback(
     (columnId: string) => {
@@ -839,7 +870,7 @@ export function useColumnVisibility({
  * ```tsx
  * const columnManagement = useColumnManagement({
  *   defaultVisibility: { email: false },
- *   defaultPinning: { left: ['select'] }
+ *   defaultPinning: { start: ['select'] }
  * });
  *
  * // Use in DataTable
@@ -857,9 +888,9 @@ export function useColumnManagement({
   onVisibilityChange,
   onPinningChange,
 }: {
-  defaultVisibility?: VisibilityState;
+  defaultVisibility?: ColumnVisibilityState;
   defaultPinning?: ColumnPinningState;
-  onVisibilityChange?: (visibility: VisibilityState) => void;
+  onVisibilityChange?: (visibility: ColumnVisibilityState) => void;
   onPinningChange?: (pinning: ColumnPinningState) => void;
 }) {
   const visibility = useColumnVisibility({

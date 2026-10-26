@@ -1,4 +1,6 @@
-import { cacheLife } from 'next/cache';
+'use client';
+
+import { useEffect, useState } from 'react';
 
 import { Footer } from '@kit/ui/marketing';
 import { Trans } from '@kit/ui/trans';
@@ -7,22 +9,21 @@ import { AppLogo } from '~/components/app-logo';
 import appConfig from '~/config/app.config';
 
 /**
- * The copyright year is an unstable value, and `<Suspense>` does not fix those,
- * only uncached data. It is the same for every visitor and changes once a year,
- * so caching it is the right tool. `await connection()` would also silence the
- * error, but it would make the footer render per request and take every
- * marketing page's static shell down with it.
+ * A client component so the footer copy follows the visitor's language
+ * choice — see `i18n/language-provider.tsx`. As client output it no longer
+ * needs the `'use cache'` trick the server version required to keep the
+ * marketing pages prerenderable.
+ *
+ * The copyright year is read in an effect: `new Date()` during render is an
+ * unstable value that Cache Components rejects while prerendering, and the
+ * year changes once a year, so rendering it right after hydration is fine.
  */
-async function getCopyrightYear() {
-  'use cache';
+export function SiteFooter() {
+  const [year, setYear] = useState<number | null>(null);
 
-  cacheLife('days');
-
-  return new Date().getFullYear();
-}
-
-export async function SiteFooter() {
-  const year = await getCopyrightYear();
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
 
   return (
     <Footer
@@ -33,13 +34,13 @@ export async function SiteFooter() {
           i18nKey="marketing.copyright"
           values={{
             product: appConfig.name,
-            year,
+            year: year ?? '',
           }}
         />
       }
       sections={[
         {
-          heading: 'Get Started',
+          heading: <Trans i18nKey="marketing.getStarted" />,
           links: [
             {
               href: '/auth/sign-in',
