@@ -7,7 +7,10 @@ import {
   type CardRecognitionProvider,
   type RecognizedCard,
 } from "./card-recognition";
-import { resolveCardRecognitionConfig } from "~/lib/ai/model-config";
+import {
+  isDirectProviderId,
+  resolveCardRecognitionConfig,
+} from "~/lib/ai/model-config";
 import { VisionCardRecognitionProvider } from "./vision-provider";
 
 /**
@@ -154,17 +157,25 @@ export async function getCardRecognitionProvider(
 ): Promise<CardRecognitionProvider> {
   const resolved = await resolveCardRecognitionConfig(opts?.userId, opts?.supabase);
   const provider = (resolved.provider ?? "mock").trim().toLowerCase();
+  const model =
+    resolved.model?.trim() || (process.env.CARD_RECOGNITION_MODEL ?? "").trim();
 
-  if (provider === "vision") {
-    const model =
-      resolved.model?.trim() ||
-      (process.env.CARD_RECOGNITION_MODEL ?? "").trim();
-    return new VisionCardRecognitionProvider({ model });
+  if (provider === "vision" || provider === "gateway") {
+    return new VisionCardRecognitionProvider({ provider: "vision", model });
+  }
+
+  // Provider trực tiếp (openai, anthropic, google, …): gọi thẳng nhà cung cấp.
+  if (provider !== "mock" && isDirectProviderId(provider)) {
+    return new VisionCardRecognitionProvider({
+      provider,
+      model,
+      baseUrl: resolved.baseUrl,
+    });
   }
 
   if (provider !== "mock") {
     throw new Error(
-      `Provider nhận dạng "${resolved.provider}" chưa được triển khai. Hỗ trợ: "mock", "vision".`,
+      `Provider nhận dạng "${resolved.provider}" chưa được triển khai. Hỗ trợ: "mock", "vision", hoặc các provider trực tiếp (openai, anthropic, google, xai, groq, mistral, deepseek, perplexity, togetherai, fireworks, cohere, cerebras).`,
     );
   }
   return new MockCardRecognitionProvider();

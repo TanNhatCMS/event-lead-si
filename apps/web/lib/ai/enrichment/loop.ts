@@ -1,4 +1,4 @@
-import { generateText, Output, stepCountIs } from "ai";
+import { generateText, Output, stepCountIs, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@kit/supabase/database";
@@ -14,6 +14,11 @@ import {
   type EnrichmentToolCall,
 } from "./types";
 import { buildEnrichmentTools } from "./tools";
+import {
+  appendSkillsToPrompt,
+  buildAgentToolset,
+  loadAgentTooling,
+} from "../agent-tooling";
 import {
   createEnrichmentModel,
   getEnrichmentConfigIssue,
@@ -174,10 +179,26 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
   }
 
   const model = createEnrichmentModel({ ...config, model: config.model });
-  const tools = buildEnrichmentTools();
-  const systemPrompt = input.supabase
+  const baseTools = buildEnrichmentTools();
+  const basePrompt = input.supabase
     ? await getPrompt('lead_enrichment', input.userId ?? '', input.supabase)
     : getPromptDefault('lead_enrichment')?.content ?? '';
+
+  // Năng lực agent do user cấu hình ở /admin/agent: plugins (tắt tool),
+  // MCP servers (hợp nhất tool ngoài), hooks (audit), skills (markdown).
+  let systemPrompt = basePrompt;
+  let tools: ToolSet = baseTools;
+  if (input.userId && input.supabase) {
+    const tooling = await loadAgentTooling(input.userId, input.supabase);
+    const { toolset } = await buildAgentToolset({
+      userId: input.userId,
+      supabase: input.supabase,
+      tooling,
+      baseTools,
+    });
+    tools = toolset;
+    systemPrompt = appendSkillsToPrompt(basePrompt, tooling.skills);
+  }
 
   const spanUserId = input.userId ?? 'unknown';
   let generated;

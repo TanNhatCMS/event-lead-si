@@ -198,7 +198,7 @@ export async function POST(request: Request) {
   // và chỉ đóng khi stream kết thúc (onFinish) / lỗi (onError) / client ngắt
   // (abort). Không dùng withUserSpan ở đây vì streamText() của AI SDK là lazy —
   // withUserSpan sẽ đóng span ngay khi streamText() trả về, trước cả khi model
-  // được gọi. Xem tab "Trace AI" ở /home/nhat-ky.
+  // được gọi. Xem tab "Trace AI" ở /admin/nhat-ky.
   const chatSpan = startUserSpan("rag.chat", user.id, {
     "rag.conversation_id": conversationId,
     "rag.model": chatConfig.model,

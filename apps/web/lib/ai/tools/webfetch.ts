@@ -19,6 +19,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { tinyFishFetch } from "../tinyfish";
 import { loadEnrichmentMarkdown } from "../enrichment/load-markdown";
 import { assertEgressAllowed, EgressBlockedError } from "./egress-guard";
 
@@ -27,6 +28,17 @@ const MAX_CHARS_DEFAULT = 8000;
 const MAX_CHARS_LIMIT = 20000;
 const CACHE_TTL_MS = 5 * 60_000;
 const CACHE_MAX_ENTRIES = 50;
+
+/**
+ * Provider của web_fetch: "direct" (mặc định — fetch trực tiếp) hoặc
+ * "tinyfish" (qua TinyFish Fetch API, cần TINYFISH_API_KEY — markdown sạch,
+ * qua được trang chặn bot thường).
+ */
+export function getWebFetchProvider(): "direct" | "tinyfish" {
+  return (process.env.WEBFETCH_PROVIDER ?? "").trim().toLowerCase() === "tinyfish"
+    ? "tinyfish"
+    : "direct";
+}
 
 export interface WebFetchResult {
   available: boolean;
@@ -110,6 +122,37 @@ export async function runWebFetch(
         ? `URL bị chặn bởi egress guard: ${err.message}`
         : "URL không hợp lệ.";
     return { available: false, message };
+  }
+
+  // Backend TinyFish (WEBFETCH_PROVIDER=tinyfish, cần TINYFISH_API_KEY):
+  // Fetch API trả markdown sạch — qua được các trang chặn bot thường.
+  if (getWebFetchProvider() === "tinyfish") {
+    try {
+      const page = await tinyFishFetch(url.toString());
+      if (!page.text) {
+        return {
+          available: false,
+          url: url.toString(),
+          message: "TinyFish không trả về nội dung text cho trang này.",
+        };
+      }
+      const truncated = page.text.length > max;
+      const result: WebFetchResult = {
+        available: true,
+        url: url.toString(),
+        title: page.title ?? undefined,
+        text: truncated ? page.text.slice(0, max) : page.text,
+        truncated,
+      };
+      setCached(urlInput, result);
+      return result;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? `TinyFish fetch thất bại: ${err.message}`
+          : "TinyFish fetch thất bại.";
+      return { available: false, url: url.toString(), message };
+    }
   }
 
   const controller = new AbortController();

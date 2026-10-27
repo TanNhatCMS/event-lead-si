@@ -4,6 +4,7 @@ import { z } from "zod";
 import { toolRegistry } from "../tools";
 import { assertEgressAllowed } from "../tools/egress-guard";
 import { webFetchTool } from "../tools/webfetch";
+import { getTinyFishApiKey, tinyFishSearch } from "../tinyfish";
 import { loadEnrichmentMarkdown } from "./load-markdown";
 
 /**
@@ -148,11 +149,13 @@ export function extractCompanyDomain(email: string): CompanyDomainGuess {
 //   (best-effort, có thể bị giới hạn tần suất).
 // - "none" (mặc định): không tìm kiếm, tool trả { available: false }.
 
-export type SearchProvider = "tool" | "api" | "fetch" | "none";
+export type SearchProvider = "tool" | "api" | "fetch" | "tinyfish" | "none";
 
 export function getSearchProvider(): SearchProvider {
   const raw = (process.env.SEARCH_PROVIDER ?? "").trim().toLowerCase();
-  if (raw === "tool" || raw === "api" || raw === "fetch") return raw;
+  if (raw === "tool" || raw === "api" || raw === "fetch" || raw === "tinyfish") {
+    return raw;
+  }
   return "none";
 }
 
@@ -166,6 +169,7 @@ export function isWebSearchAvailable(): boolean {
     );
   }
   if (provider === "fetch") return true;
+  if (provider === "tinyfish") return Boolean(getTinyFishApiKey());
   return false;
 }
 
@@ -321,6 +325,18 @@ async function searchViaFetch(
   return items;
 }
 
+/** Backend "tinyfish": Search API của TinyFish (1 key cho search + fetch). */
+async function searchViaTinyFish(
+  query: string,
+  maxResults: number,
+): Promise<WebSearchResultItem[]> {
+  const items = await tinyFishSearch(query, { maxResults });
+  return items
+    .filter((item) => item.url.startsWith("http") && item.title)
+    .slice(0, maxResults)
+    .map((item) => ({ title: item.title, url: item.url, snippet: item.snippet }));
+}
+
 export async function runWebSearch(
   query: string,
   maxResults = 3,
@@ -331,7 +347,7 @@ export async function runWebSearch(
       available: false,
       provider,
       message:
-        "Chưa cấu hình web search (SEARCH_PROVIDER=tool|api|fetch). Agent bỏ qua tìm kiếm web.",
+        "Chưa cấu hình web search (SEARCH_PROVIDER=tool|api|fetch|tinyfish). Agent bỏ qua tìm kiếm web.",
     };
   }
   try {
@@ -340,7 +356,9 @@ export async function runWebSearch(
         ? await searchViaTool(query, maxResults)
         : provider === "api"
           ? await searchViaApi(query, maxResults)
-          : await searchViaFetch(query, maxResults);
+          : provider === "tinyfish"
+            ? await searchViaTinyFish(query, maxResults)
+            : await searchViaFetch(query, maxResults);
     return {
       available: true,
       provider,

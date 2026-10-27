@@ -30,7 +30,9 @@ export default HomeLayout;
 
 function SidebarLayout({ children }: React.PropsWithChildren) {
   return (
-    <SidebarProvider defaultOpen={navigationConfig.sidebarCollapsed}>
+    // defaultOpen = trạng thái MỞ RỘNG của sidebar → đảo lại so với cờ
+    // `sidebarCollapsed` (đặt COLLAPSED=true mới thu gọn icon-only lúc đầu).
+    <SidebarProvider defaultOpen={!navigationConfig.sidebarCollapsed}>
       <Page style={'sidebar'}>
         <PageNavigation>
           <HomeSidebar />

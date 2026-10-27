@@ -62,6 +62,18 @@ const config = {
   cacheComponents: true,
   /** Builds one App Shell per route and reuses it for every link to it. */
   partialPrefetching: true,
+  /** Route cũ `/home/*` đã đổi thành `/dashboard/*` — redirect giữ tương
+   * thích link/bookmark cũ. */
+  async redirects() {
+    return [
+      { source: '/home', destination: '/dashboard', permanent: true },
+      {
+        source: '/home/:path*',
+        destination: '/dashboard/:path*',
+        permanent: true,
+      },
+    ];
+  },
   reactCompiler: ENABLE_REACT_COMPILER,
   turbopack: {
     resolveExtensions: ['.ts', '.tsx', '.js', '.jsx'],

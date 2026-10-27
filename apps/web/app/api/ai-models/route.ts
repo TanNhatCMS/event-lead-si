@@ -12,6 +12,7 @@ import {
   getAiModelConfig,
   type AiModelConfigSource,
 } from '~/lib/ai/model-config';
+import { getModelCatalog, type ModelCatalog } from '~/lib/ai/model-catalog';
 
 /**
  * Các capability AI mà EventLead biết cách dùng.
@@ -208,7 +209,9 @@ export async function GET() {
     capabilities.push(await buildCapabilityStatus(capability, user.id, supabase));
   }
 
-  return NextResponse.json({ configs: configs ?? [], capabilities });
+  const catalog: ModelCatalog = await getModelCatalog();
+
+  return NextResponse.json({ configs: configs ?? [], capabilities, catalog });
 }
 
 /**

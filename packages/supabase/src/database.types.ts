@@ -34,6 +34,129 @@ export type Database = {
   };
   public: {
     Tables: {
+      agent_config: {
+        Row: {
+          credentials: Json;
+          hooks: Json;
+          plugins: Json;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          credentials?: Json;
+          hooks?: Json;
+          plugins?: Json;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          credentials?: Json;
+          hooks?: Json;
+          plugins?: Json;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      agent_mcp_servers: {
+        Row: {
+          created_at: string;
+          enabled: boolean;
+          headers: Json;
+          id: string;
+          name: string;
+          updated_at: string;
+          url: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          enabled?: boolean;
+          headers?: Json;
+          id?: string;
+          name: string;
+          updated_at?: string;
+          url: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          enabled?: boolean;
+          headers?: Json;
+          id?: string;
+          name?: string;
+          updated_at?: string;
+          url?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      agent_skills: {
+        Row: {
+          content: string;
+          created_at: string;
+          description: string;
+          enabled: boolean;
+          id: string;
+          name: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          content: string;
+          created_at?: string;
+          description?: string;
+          enabled?: boolean;
+          id?: string;
+          name: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          content?: string;
+          created_at?: string;
+          description?: string;
+          enabled?: boolean;
+          id?: string;
+          name?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      agent_tinyfish_events: {
+        Row: {
+          created_at: string;
+          event: string;
+          id: string;
+          payload: Json;
+          run_id: string;
+          status: string | null;
+          user_id: string;
+          verified: boolean;
+        };
+        Insert: {
+          created_at?: string;
+          event: string;
+          id?: string;
+          payload?: Json;
+          run_id: string;
+          status?: string | null;
+          user_id: string;
+          verified?: boolean;
+        };
+        Update: {
+          created_at?: string;
+          event?: string;
+          id?: string;
+          payload?: Json;
+          run_id?: string;
+          status?: string | null;
+          user_id?: string;
+          verified?: boolean;
+        };
+        Relationships: [];
+      };
       audit_logs: {
         Row: {
           action: string;

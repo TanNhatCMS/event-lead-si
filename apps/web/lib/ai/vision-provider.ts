@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createGateway, generateText, Output } from "ai";
+import { createGateway, generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
 import type {
@@ -8,11 +8,18 @@ import type {
   RecognizedCard,
 } from "./card-recognition";
 import { getGatewayApiKey } from "./enrichment/model-config";
+import { createDirectModel, type DirectProviderId } from "./model-config";
 import { getPrompt } from "./prompts/manager";
 
 /**
- * Provider nhận dạng danh thiếp bằng MODEL AI CÓ KHẢ NĂNG XEM ẢNH (vision),
- * chạy qua AI Gateway đã cấu hình (AI_GATEWAY_API_KEY).
+ * Provider nhận dạng danh thiếp bằng MODEL AI CÓ KHẢ NĂNG XEM ẢNH (vision).
+ *
+ * Hai đường đi:
+ * - "vision" (mặc định): qua AI Gateway (AI_GATEWAY_API_KEY), model dạng
+ *   "openai/gpt-4o" — một key cho mọi nhà cung cấp.
+ * - provider trực tiếp (openai, anthropic, google, xai…): gọi thẳng nhà cung
+ *   cấp bằng `@ai-sdk/<provider>` với API key env riêng, chọn ở trang
+ *   Mô hình AI.
  *
  * Không phải OCR API chuyên dụng (Google Vision/Azure) — theo quyết định của
  * người dùng ngày 2026-10-13, OCR thật = model AI đọc ảnh và trích xuất
@@ -81,21 +88,47 @@ function toRecognizedCard(output: z.infer<typeof visionOutputSchema>): Recognize
 }
 
 export class VisionCardRecognitionProvider implements CardRecognitionProvider {
-  readonly name = "vision";
-  private readonly model: string;
+  readonly name: string;
+  private readonly languageModel: LanguageModel;
 
   /**
-   * @param model Model id cho AI Gateway, ví dụ "openai/gpt-4o".
-   *   Phải là model có khả năng đọc ảnh (vision).
+   * @param provider "vision" (qua AI Gateway) hoặc id provider trực tiếp
+   *   ("openai", "anthropic", "google", …).
+   * @param model Model id: với gateway dạng "openai/gpt-4o"; với provider
+   *   trực tiếp là model id của nhà cung cấp (vd "gpt-4o"). Phải là model có
+   *   khả năng đọc ảnh (vision).
+   * @param baseUrl Base URL tuỳ chọn cho provider trực tiếp (proxy/self-host).
    */
-  constructor(opts: { model: string }) {
+  constructor(opts: {
+    provider?: string;
+    model: string;
+    baseUrl?: string | null;
+  }) {
     const model = opts.model.trim();
     if (!model) {
       throw new Error(
-        "Provider vision cần cấu hình model (capability card_recognition trong trang Mô hình AI, hoặc biến CARD_RECOGNITION_MODEL).",
+        "Provider nhận dạng danh thiếp cần cấu hình model (capability card_recognition trong trang Mô hình AI, hoặc biến CARD_RECOGNITION_MODEL).",
       );
     }
-    this.model = model;
+
+    const providerId = (opts.provider ?? "vision").trim().toLowerCase();
+    this.name = providerId;
+
+    if (providerId === "vision" || providerId === "gateway") {
+      const apiKey = getGatewayApiKey();
+      if (!apiKey) {
+        throw new Error(
+          "Chưa cấu hình AI Gateway (AI_GATEWAY_API_KEY). Không thể nhận dạng bằng model AI.",
+        );
+      }
+      this.languageModel = createGateway({ apiKey })(model);
+      return;
+    }
+
+    this.languageModel = createDirectModel(providerId as DirectProviderId, {
+      model,
+      baseUrl: opts.baseUrl ?? null,
+    });
   }
 
   async recognize(input: {
@@ -113,15 +146,6 @@ export class VisionCardRecognitionProvider implements CardRecognitionProvider {
       );
     }
 
-    const apiKey = getGatewayApiKey();
-    if (!apiKey) {
-      throw new Error(
-        "Chưa cấu hình AI Gateway (AI_GATEWAY_API_KEY). Không thể nhận dạng bằng model AI.",
-      );
-    }
-
-    const provider = createGateway({ apiKey });
-
     const systemPrompt =
       input.userId && input.supabase
         ? await getPrompt(
@@ -134,7 +158,7 @@ export class VisionCardRecognitionProvider implements CardRecognitionProvider {
     let generated;
     try {
       generated = await generateText({
-        model: provider(this.model),
+        model: this.languageModel,
         system: systemPrompt,
         messages: [
           {

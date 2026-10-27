@@ -5,8 +5,12 @@ import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 import { requireUser } from '@kit/supabase/require-user';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
+
+import pathsConfig from '~/config/paths.config';
 
 /**
  * @name requireUserInServerComponent
@@ -35,4 +39,47 @@ export const requireUserInServerComponent = cache(async () => {
   }
 
   return result.data;
+});
+
+/**
+ * Role của người dùng lưu trong GoTrue `app_metadata.role` — chỉ service-role
+ * sửa được (không thể tự nâng quyền từ client). Người không có role hoặc
+ * `role !== 'admin'` được coi là member.
+ */
+export function isAdminUser(user: {
+  app_metadata?: Record<string, unknown> | null;
+}): boolean {
+  return user.app_metadata?.role === 'admin';
+}
+
+/**
+ * Kiểm tra admin cho MỘT SESSION ĐANG CHẠY. JWT claims được bake lúc đăng
+ * nhập — session tồn tại từ trước khi admin gán role sẽ mang `app_metadata`
+ * cũ cho tới khi token refresh (mặc định 1h). Claims thiếu role thì hỏi lại
+ * GoTrue (`getUser` đọc record mới nhất) để việc gán role có hiệu lực ngay
+ * mà không bắt người dùng đăng nhập lại.
+ */
+export async function isAdminSession(
+  client: SupabaseClient,
+  user: { app_metadata?: Record<string, unknown> | null },
+): Promise<boolean> {
+  if (isAdminUser(user)) return true;
+
+  const { data } = await client.auth.getUser();
+  return Boolean(data?.user && isAdminUser(data.user));
+}
+
+/**
+ * @name requireAdminInServerComponent
+ * @description Như requireUserInServerComponent nhưng bắt buộc role admin
+ * (app_metadata.role). Member truy cập khu vực /admin sẽ bị đưa về /dashboard.
+ */
+export const requireAdminInServerComponent = cache(async () => {
+  const user = await requireUserInServerComponent();
+
+  if (!(await isAdminSession(getSupabaseServerClient(), user))) {
+    redirect(pathsConfig.app.home);
+  }
+
+  return user;
 });

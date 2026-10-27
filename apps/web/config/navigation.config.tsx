@@ -1,4 +1,4 @@
-import { Bot, Building2, Cpu, FileText, History, Home, Network, PackageSearch, ScanLine, User, Users } from 'lucide-react';
+import { Bot, Building2, Cpu, FileText, History, Home, Network, PackageSearch, Plug, ScanLine, ShieldCheck, User, Users } from 'lucide-react';
 import { z } from 'zod';
 
 import { NavigationConfigSchema } from '@kit/ui/navigation-schema';
@@ -44,21 +44,6 @@ const routes = [
         Icon: <Network className={iconClasses} />,
       },
       {
-        label: 'common.routes.aiModels',
-        path: pathsConfig.app.aiModels,
-        Icon: <Cpu className={iconClasses} />,
-      },
-      {
-        label: 'common.routes.aiPrompts',
-        path: pathsConfig.app.aiPrompts,
-        Icon: <FileText className={iconClasses} />,
-      },
-      {
-        label: 'common.routes.auditLog',
-        path: pathsConfig.app.auditLog,
-        Icon: <History className={iconClasses} />,
-      },
-      {
         label: 'common.routes.assistant',
         path: pathsConfig.app.assistant,
         Icon: <Bot className={iconClasses} />,
@@ -73,6 +58,54 @@ const routes = [
         path: pathsConfig.app.profileSettings,
         Icon: <User className={iconClasses} />,
       },
+      {
+        label: 'common.routes.admin',
+        path: pathsConfig.app.admin,
+        Icon: <ShieldCheck className={iconClasses} />,
+      },
+    ],
+  },
+] satisfies z.infer<typeof NavigationConfigSchema>['routes'];
+
+/**
+ * Navigation riêng cho khu vực /admin — shell admin có sidebar riêng,
+ * không lẫn các mục nghiệp vụ của /home.
+ */
+const adminRoutes = [
+  {
+    label: 'common.routes.admin',
+    children: [
+      {
+        label: 'common.routes.adminOverview',
+        path: pathsConfig.app.admin,
+        Icon: <ShieldCheck className={iconClasses} />,
+        highlightMatch: `^${pathsConfig.app.admin}$`,
+      },
+      {
+        label: 'common.routes.users',
+        path: pathsConfig.app.users,
+        Icon: <Users className={iconClasses} />,
+      },
+      {
+        label: 'common.routes.agentTooling',
+        path: pathsConfig.app.agentTooling,
+        Icon: <Plug className={iconClasses} />,
+      },
+      {
+        label: 'common.routes.aiModels',
+        path: pathsConfig.app.aiModels,
+        Icon: <Cpu className={iconClasses} />,
+      },
+      {
+        label: 'common.routes.aiPrompts',
+        path: pathsConfig.app.aiPrompts,
+        Icon: <FileText className={iconClasses} />,
+      },
+      {
+        label: 'common.routes.auditLog',
+        path: pathsConfig.app.auditLog,
+        Icon: <History className={iconClasses} />,
+      },
     ],
   },
 ] satisfies z.infer<typeof NavigationConfigSchema>['routes'];
@@ -81,4 +114,10 @@ export const navigationConfig = NavigationConfigSchema.parse({
   routes,
   style: process.env.NEXT_PUBLIC_NAVIGATION_STYLE,
   sidebarCollapsed: process.env.NEXT_PUBLIC_HOME_SIDEBAR_COLLAPSED,
+});
+
+export const adminNavigationConfig = NavigationConfigSchema.parse({
+  routes: adminRoutes,
+  style: 'sidebar',
+  sidebarCollapsed: process.env.NEXT_PUBLIC_ADMIN_SIDEBAR_COLLAPSED,
 });
