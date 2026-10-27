@@ -54,3 +54,4 @@ apps/web/.output/
 .prds/
 /.pnpm-store
 /.mimosa
+/apps/web/.mimosa
