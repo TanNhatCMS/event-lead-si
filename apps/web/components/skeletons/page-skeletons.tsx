@@ -47,7 +47,7 @@ export function PageHeaderSkeleton() {
 }
 
 /**
- * Mirrors the dashboard grid in `dashboard-demo-charts`, breakpoints included,
+ * Mirrors the dashboard cards grid, breakpoints included,
  * so the cards land where the skeletons were.
  */
 export function ChartCardsSkeleton({ count = 6 }: { count?: number }) {

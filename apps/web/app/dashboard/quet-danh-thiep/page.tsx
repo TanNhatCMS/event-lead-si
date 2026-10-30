@@ -23,6 +23,10 @@ export default async function QuetDanhThiepPage() {
       <PageBody>
         <div className="mx-auto max-w-3xl">
           <CardScanFlow />
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Mẹo: mở trang này trên điện thoại rồi chọn “Thêm vào Màn hình chính” (menu trình
+            duyệt) để cài EventLead như một ứng dụng — chụp danh thiếp nhanh hơn ở sự kiện.
+          </p>
         </div>
       </PageBody>
     </>

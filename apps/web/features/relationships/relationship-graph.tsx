@@ -1,7 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Check, Copy, Network, Sparkles, X } from 'lucide-react';
 
 import { Badge } from '@kit/ui/badge';
@@ -25,20 +31,47 @@ type Intro = {
   evidence: string;
 };
 
-const W = 720;
-const H = 460;
+type Point = { x: number; y: number };
+
+const W = 760;
+const H = 480;
 const CX = W / 2;
 const CY = H / 2;
+const REPULSION = 4200;
+const SPRING_LENGTH = 92;
+const DAMPING = 0.82;
+const MIN_ALPHA = 0.02;
 
 /**
- * Đồ thị quan hệ: liên hệ — công ty. Bấm vào node để xem kết nối.
- * Kèm công cụ tìm người giới thiệu tới một liên hệ mục tiêu (FR-022).
+ * Đồ thị quan hệ dạng node graph — mô phỏng lực (đẩy nhau, lò xo theo cạnh,
+ * trọng tâm) chạy bằng requestAnimationFrame. Node kéo thả được, nền pan,
+ * lăn chuột zoom. Bấm node để xem kết nối; kèm công cụ tìm người giới thiệu
+ * tới một liên hệ mục tiêu (FR-022).
  */
 export function RelationshipGraph() {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+  // tick chỉ để kích hoạt render lại sau mỗi bước physics — giá trị không
+  // được đọc trực tiếp nên không cần destructure.
+  const [, setTick] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
+
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  // Vị trí + vận tốc sống trong ref (không qua state mỗi tick của physics —
+  // chỉ setTick để render lại).
+  const simRef = useRef<{
+    pos: Map<string, Point>;
+    vel: Map<string, Point>;
+    alpha: number;
+  } | null>(null);
+  const dragRef = useRef<{ id: string; moved: boolean } | null>(null);
+  const panDragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(
+    null,
+  );
 
   // Tìm người giới thiệu
   const [targetId, setTargetId] = useState('');
@@ -67,11 +100,11 @@ export function RelationshipGraph() {
     })();
   }, []);
 
-  // Layout: công ty nằm trên vòng tròn, liên hệ quây quanh công ty của mình.
-  const layout = useMemo(() => {
-    const pos = new Map<string, { x: number; y: number }>();
+  // Vị trí ban đầu: công ty trên vòng tròn, liên hệ quây quanh công ty của
+  // mình — điểm khởi động cho mô phỏng lực.
+  const seedLayout = useMemo(() => {
+    const pos = new Map<string, Point>();
     const companies = nodes.filter((n) => n.kind === 'company');
-    const contacts = nodes.filter((n) => n.kind === 'contact');
     const contactCompany = new Map<string, string>();
     for (const e of edges) {
       if (e.from.startsWith('contact:') && e.to.startsWith('company:')) {
@@ -85,7 +118,7 @@ export function RelationshipGraph() {
     });
     const byCompany = new Map<string, Node[]>();
     const free: Node[] = [];
-    for (const c of contacts) {
+    for (const c of nodes.filter((n) => n.kind === 'contact')) {
       const co = contactCompany.get(c.id);
       if (co && pos.has(co)) {
         const arr = byCompany.get(co) ?? [];
@@ -98,33 +131,192 @@ export function RelationshipGraph() {
     for (const [coId, arr] of byCompany) {
       const base = pos.get(coId)!;
       arr.forEach((c, i) => {
-        const a = (2 * Math.PI * i) / arr.length;
-        const r = 62;
+        const a = (2 * Math.PI * i) / Math.max(1, arr.length);
         pos.set(c.id, {
-          x: Math.min(W - 50, Math.max(50, base.x + r * Math.cos(a))),
-          y: Math.min(H - 30, Math.max(30, base.y + r * Math.sin(a))),
+          x: base.x + 70 * Math.cos(a) + (i % 2) * 6,
+          y: base.y + 70 * Math.sin(a),
         });
       });
     }
     free.forEach((c, i) => {
       pos.set(c.id, {
-        x: 60 + ((i * 97) % (W - 120)),
-        y: 40 + ((i * 53) % (H - 80)),
+        x: 80 + ((i * 131) % (W - 160)),
+        y: 60 + ((i * 79) % (H - 120)),
       });
     });
     return pos;
   }, [nodes, edges]);
 
+  // Khởi động mô phỏng khi dữ liệu đổi.
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    const pos = new Map<string, Point>();
+    const vel = new Map<string, Point>();
+    for (const n of nodes) {
+      const seeded = seedLayout.get(n.id) ?? { x: CX, y: CY };
+      pos.set(n.id, { x: seeded.x, y: seeded.y });
+      vel.set(n.id, { x: 0, y: 0 });
+    }
+    simRef.current = { pos, vel, alpha: 1 };
+    setTick((t) => t + 1);
+  }, [nodes, seedLayout]);
+
+  // Vòng lặp mô phỏng lực.
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    let raf = 0;
+
+    const step = () => {
+      const sim = simRef.current;
+      if (!sim) return;
+
+      if (sim.alpha >= MIN_ALPHA) {
+        const list = nodes.map((n) => ({ id: n.id, ...sim.pos.get(n.id)! }));
+        // Đẩy nhau giữa mọi cặp node.
+        for (let i = 0; i < list.length; i++) {
+          for (let j = i + 1; j < list.length; j++) {
+            const a = list[i]!;
+            const b = list[j]!;
+            let dx = a.x - b.x;
+            let dy = a.y - b.y;
+            let dist2 = dx * dx + dy * dy;
+            if (dist2 < 1) {
+              dx = (Math.random() - 0.5) * 2;
+              dy = (Math.random() - 0.5) * 2;
+              dist2 = 4;
+            }
+            const force = REPULSION / dist2;
+            const dist = Math.sqrt(dist2);
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            const va = sim.vel.get(a.id)!;
+            sim.vel.set(a.id, { x: va.x + fx, y: va.y + fy });
+            const vb = sim.vel.get(b.id)!;
+            sim.vel.set(b.id, { x: vb.x - fx, y: vb.y - fy });
+          }
+        }
+        // Lò xo dọc theo cạnh.
+        for (const e of edges) {
+          const a = sim.pos.get(e.from);
+          const b = sim.pos.get(e.to);
+          const va = sim.vel.get(e.from);
+          const vb = sim.vel.get(e.to);
+          if (!a || !b || !va || !vb) continue;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.max(1, Math.hypot(dx, dy));
+          const f = ((dist - SPRING_LENGTH) / dist) * 0.06;
+          sim.vel.set(e.from, { x: va.x + dx * f, y: va.y + dy * f });
+          sim.vel.set(e.to, { x: vb.x - dx * f, y: vb.y - dy * f });
+        }
+        // Trọng tâm + tích phân.
+        for (const n of nodes) {
+          const p = sim.pos.get(n.id)!;
+          const v = sim.vel.get(n.id)!;
+          if (dragRef.current?.id === n.id) continue;
+          v.x += (CX - p.x) * 0.004 * sim.alpha;
+          v.y += (CY - p.y) * 0.004 * sim.alpha;
+          v.x *= DAMPING;
+          v.y *= DAMPING;
+          p.x = Math.min(W - 30, Math.max(30, p.x + v.x));
+          p.y = Math.min(H - 24, Math.max(24, p.y + v.y));
+        }
+        sim.alpha *= 0.982;
+        setTick((t) => t + 1);
+      }
+      raf = requestAnimationFrame(step);
+    };
+
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [nodes, edges]);
+
+  /** Điểm chuột → toạ độ viewBox (đã trừ pan / chia zoom). */
+  const toSvgPoint = useCallback(
+    (clientX: number, clientY: number): Point => {
+      const rect = svgRef.current?.getBoundingClientRect();
+      if (!rect) return { x: 0, y: 0 };
+      const vx = ((clientX - rect.left) / rect.width) * W;
+      const vy = ((clientY - rect.top) / rect.height) * H;
+      return { x: (vx - pan.x) / zoom, y: (vy - pan.y) / zoom };
+    },
+    [pan, zoom],
+  );
+
+  function startNodeDrag(e: React.PointerEvent, id: string) {
+    e.stopPropagation();
+    dragRef.current = { id, moved: false };
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    const sim = simRef.current;
+    if (!sim) return;
+
+    if (dragRef.current) {
+      const p = toSvgPoint(e.clientX, e.clientY);
+      sim.pos.set(dragRef.current.id, p);
+      sim.vel.set(dragRef.current.id, { x: 0, y: 0 });
+      sim.alpha = Math.max(sim.alpha, 0.3);
+      dragRef.current.moved = true;
+      setTick((t) => t + 1);
+      return;
+    }
+
+    if (panDragRef.current) {
+      const dx = e.clientX - panDragRef.current.startX;
+      const dy = e.clientY - panDragRef.current.startY;
+      setPan({
+        x: panDragRef.current.panX + dx,
+        y: panDragRef.current.panY + dy,
+      });
+    }
+  }
+
+  function onPointerUp() {
+    if (dragRef.current && !dragRef.current.moved) {
+      setSelected(dragRef.current.id);
+    }
+    if (dragRef.current?.moved) {
+      const sim = simRef.current;
+      if (sim) sim.alpha = Math.max(sim.alpha, 0.45); // nảy lại sau khi kéo
+    }
+    dragRef.current = null;
+    panDragRef.current = null;
+  }
+
+  function onWheel(e: React.WheelEvent) {
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    const next = Math.min(2.5, Math.max(0.5, zoom * factor));
+    // Zoom quanh con trỏ: giữ điểm dưới con trỏ đứng yên.
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (rect) {
+      const vx = ((e.clientX - rect.left) / rect.width) * W;
+      const vy = ((e.clientY - rect.top) / rect.height) * H;
+      setPan({
+        x: vx - ((vx - pan.x) / zoom) * next,
+        y: vy - ((vy - pan.y) / zoom) * next,
+      });
+    }
+    setZoom(next);
+  }
+
+  function resetView() {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }
+
   const selectedNode = nodes.find((n) => n.id === selected) ?? null;
+  const focusId = hovered ?? selected;
   const connectedIds = useMemo(() => {
-    if (!selected) return new Set<string>();
-    const s = new Set<string>([selected]);
+    if (!focusId) return new Set<string>();
+    const s = new Set<string>([focusId]);
     for (const e of edges) {
-      if (e.from === selected) s.add(e.to);
-      if (e.to === selected) s.add(e.from);
+      if (e.from === focusId) s.add(e.to);
+      if (e.to === focusId) s.add(e.from);
     }
     return s;
-  }, [selected, edges]);
+  }, [focusId, edges]);
 
   const contacts = nodes.filter((n) => n.kind === 'contact');
 
@@ -189,6 +381,15 @@ export function RelationshipGraph() {
     );
   }
 
+  const sim = simRef.current;
+  const initials = (label: string) =>
+    label
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]!.toUpperCase())
+      .join('');
+
   return (
     <div className="flex w-full flex-col gap-5">
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -199,11 +400,18 @@ export function RelationshipGraph() {
           <CardTitle className="flex items-center gap-2 text-base">
             <Network className="h-4 w-4" /> Đồ thị kết nối
           </CardTitle>
-          {selectedNode && (
-            <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
-              <X className="mr-1 h-4 w-4" /> Bỏ chọn
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {(zoom !== 1 || pan.x !== 0 || pan.y !== 0) && (
+              <Button size="sm" variant="ghost" onClick={resetView}>
+                Về giữa
+              </Button>
+            )}
+            {selectedNode && (
+              <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>
+                <X className="mr-1 h-4 w-4" /> Bỏ chọn
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {nodes.length === 0 ? (
@@ -213,74 +421,127 @@ export function RelationshipGraph() {
           ) : (
             <>
               <svg
+                ref={svgRef}
                 viewBox={`0 0 ${W} ${H}`}
-                className="w-full rounded-lg border bg-muted/20"
+                className="w-full cursor-grab touch-none rounded-lg border bg-muted/20 active:cursor-grabbing"
                 role="img"
                 aria-label="Đồ thị quan hệ"
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerLeave={onPointerUp}
+                onPointerDown={(e) => {
+                  // Bấm nền → bắt đầu pan.
+                  panDragRef.current = {
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    panX: pan.x,
+                    panY: pan.y,
+                  };
+                }}
+                onWheel={onWheel}
               >
-                {edges.map((e, i) => {
-                  const a = layout.get(e.from);
-                  const b = layout.get(e.to);
-                  if (!a || !b) return null;
-                  const active = !selected || connectedIds.has(e.from) || connectedIds.has(e.to);
-                  return (
-                    <line
-                      key={i}
-                      x1={a.x}
-                      y1={a.y}
-                      x2={b.x}
-                      y2={b.y}
-                      strokeWidth={1.5}
-                      className={active ? 'stroke-primary/50' : 'stroke-muted-foreground/15'}
-                    />
-                  );
-                })}
-                {nodes.map((n) => {
-                  const p = layout.get(n.id);
-                  if (!p) return null;
-                  const isCompany = n.kind === 'company';
-                  const dim = selected && !connectedIds.has(n.id);
-                  return (
-                    <g
-                      key={n.id}
-                      onClick={() => setSelected(n.id)}
-                      className="cursor-pointer"
-                      opacity={dim ? 0.25 : 1}
-                    >
-                      <circle
-                        cx={p.x}
-                        cy={p.y}
-                        r={isCompany ? 16 : 11}
-                        className={cn(
-                          selected === n.id
-                            ? 'fill-primary stroke-primary'
-                            : isCompany
-                              ? 'fill-amber-500/80 stroke-amber-700'
-                              : 'fill-sky-500/80 stroke-sky-700',
-                        )}
-                        strokeWidth={selected === n.id ? 3 : 1.5}
+                <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+                  {/* Cạnh */}
+                  {edges.map((e, i) => {
+                    const a = sim?.pos.get(e.from);
+                    const b = sim?.pos.get(e.to);
+                    if (!a || !b) return null;
+                    const active =
+                      !focusId || connectedIds.has(e.from) || connectedIds.has(e.to);
+                    return (
+                      <line
+                        key={i}
+                        x1={a.x}
+                        y1={a.y}
+                        x2={b.x}
+                        y2={b.y}
+                        strokeWidth={active && focusId ? 2 : 1.2}
+                        className={
+                          active && focusId
+                            ? 'stroke-primary/60'
+                            : 'stroke-muted-foreground/15'
+                        }
                       />
-                      <text
-                        x={p.x}
-                        y={p.y + (isCompany ? 30 : 25)}
-                        textAnchor="middle"
-                        fontSize={11}
-                        className="fill-foreground"
+                    );
+                  })}
+
+                  {/* Node */}
+                  {nodes.map((n) => {
+                    const p = sim?.pos.get(n.id);
+                    if (!p) return null;
+                    const isCompany = n.kind === 'company';
+                    const dim = focusId ? !connectedIds.has(n.id) : false;
+                    const isFocus = selected === n.id || hovered === n.id;
+                    const r = isCompany ? 19 : 13;
+                    return (
+                      <g
+                        key={n.id}
+                        className="cursor-pointer"
+                        opacity={dim ? 0.2 : 1}
+                        onPointerDown={(e) => startNodeDrag(e, n.id)}
+                        onPointerEnter={() => setHovered(n.id)}
+                        onPointerLeave={() => setHovered(null)}
                       >
-                        {n.label.length > 18 ? n.label.slice(0, 17) + '…' : n.label}
-                      </text>
-                    </g>
-                  );
-                })}
+                        {isCompany ? (
+                          <rect
+                            x={p.x - r}
+                            y={p.y - r}
+                            width={r * 2}
+                            height={r * 2}
+                            rx={6}
+                            className={cn(
+                              isFocus
+                                ? 'fill-amber-500 stroke-amber-600'
+                                : 'fill-amber-500/80 stroke-amber-700',
+                            )}
+                            strokeWidth={isFocus ? 3 : 1.5}
+                          />
+                        ) : (
+                          <circle
+                            cx={p.x}
+                            cy={p.y}
+                            r={r}
+                            className={cn(
+                              isFocus
+                                ? 'fill-sky-500 stroke-sky-600'
+                                : 'fill-sky-500/80 stroke-sky-700',
+                            )}
+                            strokeWidth={isFocus ? 3 : 1.5}
+                          />
+                        )}
+                        {/* Chữ viết tắt trong node */}
+                        <text
+                          x={p.x}
+                          y={p.y + 4}
+                          textAnchor="middle"
+                          fontSize={isCompany ? 9 : 10}
+                          fontWeight={600}
+                          className="fill-white select-none"
+                        >
+                          {isCompany ? 'CO' : initials(n.label)}
+                        </text>
+                        <text
+                          x={p.x}
+                          y={p.y + r + 14}
+                          textAnchor="middle"
+                          fontSize={11}
+                          className="fill-foreground select-none"
+                        >
+                          {n.label.length > 20 ? n.label.slice(0, 19) + '…' : n.label}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </g>
               </svg>
-              <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+              <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="inline-block h-3 w-3 rounded-full bg-sky-500/80" /> Liên hệ
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="inline-block h-3 w-3 rounded-full bg-amber-500/80" /> Công ty
+                  <span className="inline-block h-3 w-3 rounded bg-amber-500/80" /> Công ty
                 </span>
-                <span>Bấm vào node để xem kết nối.</span>
+                <span>Kéo node để sắp xếp · kéo nền để di chuyển · lăn chuột để zoom · bấm node để xem kết nối.</span>
               </div>
             </>
           )}
@@ -301,7 +562,7 @@ export function RelationshipGraph() {
               </p>
               {selectedNode.kind === 'contact' && (
                 <Link
-                  href={`/home/danh-ba/${selectedNode.id.replace('contact:', '')}`}
+                  href={`/dashboard/danh-ba/${selectedNode.id.replace('contact:', '')}`}
                   className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
                 >
                   Mở hồ sơ liên hệ →
@@ -368,7 +629,7 @@ export function RelationshipGraph() {
                     >
                       <div className="min-w-0">
                         <Link
-                          href={`/home/danh-ba/${intro.connector.id}`}
+                          href={`/dashboard/danh-ba/${intro.connector.id}`}
                           className="text-sm font-medium hover:underline"
                         >
                           {intro.connector.full_name}

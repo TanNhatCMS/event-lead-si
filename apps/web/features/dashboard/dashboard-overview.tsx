@@ -15,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@kit/ui/card';
 import { Spinner } from '@kit/ui/spinner';
 import { cn } from '@kit/ui/utils';
 
+import { EventSelector } from './event-selector';
+import { FollowUpQueue } from './follow-up-queue';
 import { RemindersWidget } from './reminders-widget';
 
 type Stats = {
@@ -134,8 +136,14 @@ export function DashboardOverview() {
 
   return (
     <div className="flex w-full flex-col gap-5">
+      {/* Phiên sự kiện: chọn/tạo sự kiện + số liệu theo sự kiện */}
+      <EventSelector />
+
       {/* Nhắc việc cần chăm sóc */}
       <RemindersWidget />
+
+      {/* Hàng đợi follow-up: cần soạn / chờ duyệt / đã gửi */}
+      <FollowUpQueue />
 
       {/* Thẻ số liệu */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

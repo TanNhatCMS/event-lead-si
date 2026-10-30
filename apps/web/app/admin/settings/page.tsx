@@ -15,7 +15,7 @@ export default async function AiModelsSettingsPage() {
       <PageHeader
         title={'Mô hình AI'}
         description={
-          'Chọn nhà cung cấp và model AI cho từng năng lực. Chỉ lưu thông tin không nhạy cảm — không lưu API key.'
+          'Chọn nhà cung cấp, model và API key cho từng năng lực. Key lưu trong DB (write-only), không hiển thị lại.'
         }
       />
 

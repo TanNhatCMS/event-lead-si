@@ -1,0 +1,92 @@
+# Dev mode có hot reload — chạy `next dev` (Turbopack) trong container, mount
+# source từ máy host: sửa file là trang tự cập nhật. Khác docker-compose.yml
+# (production standalone, chỉ để demo/test) ở chỗ KHÔNG build bên trong image.
+#
+# 1. Bật Supabase local trên máy host:
+#      pnpm supabase:web:start
+# 2. Chạy dev:
+#      docker compose -f docker-compose.dev.yml up --build web-dev
+#    (hoặc: pnpm docker:web:dev)
+# 3. Mở http://localhost:3300
+#
+# - Source được bind mount toàn repo; node_modules và .next nằm trong named
+#   volumes khởi tạo từ image dev (Dockerfile target `dev`) — KHÔNG mount từ
+#   host (junction/symlink pnpm của Windows không dùng được trong container,
+#   và binary native khác platform). Đổi dependencies (package.json /
+#   pnpm-lock.yaml) là phải build lại: `up --build`.
+# - Hot reload qua bind mount từ Windows cần polling watcher: compose đặt
+#   NEXT_DEV_POLLING=true để next.config.mjs bật watchOptions.pollIntervalMs
+#   (inotify không truyền qua Docker Desktop bind mount).
+# - Đổi NEXT_PUBLIC_* (supabase, site URL...) là khởi động lại container —
+#   dev inline chúng lúc compile từng request, đọc từ process.env của server.
+# - File apps/web/.env.local (rỗng) được tạo lúc start; muốn thêm biến riêng
+#   cho dev container thì điền vào đó hoặc apps/web/.env.docker.
+
+name: event-lead-si-dev
+
+services:
+  web-dev:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: dev
+    ports:
+      # Host 3300 → container 3000: né 3000 (bun.exe trên host) và 3100 (demo)
+      - '3300:3000'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    env_file:
+      - path: apps/web/.env.docker
+        required: false
+    environment:
+      # Server-side trỏ đúng Supabase local trên máy host (ghi đè giá trị
+      # 127.0.0.1 trong .env.development — env file không override process.env).
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://host.docker.internal:54321}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3300}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU}
+      # Bật polling watcher cho Turbopack (xem next.config.mjs)
+      NEXT_DEV_POLLING: 'true'
+    # `with-env` (dotenv -e ./.env.local) chết nếu file không tồn tại — mount
+    # che mất file đã touch trong image nên phải touch lại sau khi mount.
+    command: sh -c "touch apps/web/.env.local && exec pnpm --filter web dev"
+    volumes:
+      # Toàn bộ repo (source mới được dev server thấy khi sửa trên host)
+      - .:/app
+      - web-dev-root-node-modules:/app/node_modules
+      - web-dev-web-node-modules:/app/apps/web/node_modules
+      - web-dev-web-next:/app/apps/web/.next
+      # node_modules của các package @kit/* (transpilePackages — sửa package
+      # cũng hot reload). Thêm package mới vào workspace thì thêm volume dòng
+      # này tương ứng.
+      - web-dev-pkg-accounts-node-modules:/app/packages/features/accounts/node_modules
+      - web-dev-pkg-auth-node-modules:/app/packages/features/auth/node_modules
+      - web-dev-pkg-i18n-node-modules:/app/packages/i18n/node_modules
+      - web-dev-pkg-next-node-modules:/app/packages/next/node_modules
+      - web-dev-pkg-shared-node-modules:/app/packages/shared/node_modules
+      - web-dev-pkg-supabase-node-modules:/app/packages/supabase/node_modules
+      - web-dev-pkg-ui-node-modules:/app/packages/ui/node_modules
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      # Lần compile đầu của trang chủ qua bind mount khá lâu
+      start_period: 180s
+    restart: unless-stopped
+
+volumes:
+  web-dev-root-node-modules:
+  web-dev-web-node-modules:
+  web-dev-web-next:
+  web-dev-pkg-accounts-node-modules:
+  web-dev-pkg-auth-node-modules:
+  web-dev-pkg-i18n-node-modules:
+  web-dev-pkg-next-node-modules:
+  web-dev-pkg-shared-node-modules:
+  web-dev-pkg-supabase-node-modules:
+  web-dev-pkg-ui-node-modules:

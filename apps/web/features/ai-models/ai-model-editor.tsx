@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ArrowDown,
+  ArrowUp,
   Database,
   Loader2,
   Plus,
@@ -86,6 +88,8 @@ interface CapabilityStatus {
   envEnabled: boolean;
   /** Config JSON hiện có trong DB (chuỗi đã stringify, "" nếu chưa có). */
   configJson: string;
+  /** Danh sách model dự phòng (backend đọc từ config.fallbacks; [] khi không có). */
+  fallbacks: FallbackEntry[];
   /** updated_at của dòng DB, null khi chưa có dòng nào. */
   updatedAt: string | null;
 }
@@ -106,6 +110,128 @@ interface EditorData {
   configs: AiModelConfigRow[];
   capabilities: CapabilityStatus[];
   catalog: ModelCatalog;
+  keyStates: Record<string, ProviderKeyState>;
+  priceIndex: Record<string, ModelPriceEntry>;
+}
+
+/** Một dòng giá (USD / 1 triệu token) từ GET /api/admin/prices. */
+interface ModelPriceEntry {
+  inputPerMillion: number;
+  cachedInputPerMillion: number | null;
+  outputPerMillion: number;
+  source: string;
+}
+
+/**
+ * Lookup giá cho (provider, model): thử cặp gốc → bản gateway có prefix
+ * (`gateway:openai/gpt-5.2` cho model direct của openai) → LiteLLM bare.
+ */
+function lookupModelPrice(
+  priceIndex: Record<string, ModelPriceEntry>,
+  provider: string,
+  model: string,
+): ModelPriceEntry | null {
+  return (
+    priceIndex[`${provider}:${model}`] ??
+    priceIndex[`gateway:${provider}/${model}`] ??
+    priceIndex[`litellm:${model}`] ??
+    null
+  );
+}
+
+function formatUsdPerMillion(value: number): string {
+  const text = new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: value < 1 ? 4 : 2,
+  }).format(value);
+  return `$${text}`;
+}
+
+/** Nhãn giá gọn cho item dropdown: "in $1.75 · out $14 /1M" hoặc ''. */
+function modelPriceLabel(entry: ModelPriceEntry | null): string {
+  if (!entry) return '';
+  let label =
+    'in ' +
+    formatUsdPerMillion(entry.inputPerMillion) +
+    ' · out ' +
+    formatUsdPerMillion(entry.outputPerMillion) +
+    ' /1M';
+  if (entry.cachedInputPerMillion !== null) {
+    label += ' · cache ' + formatUsdPerMillion(entry.cachedInputPerMillion);
+  }
+  return label;
+}
+
+function buildPriceIndex(rows: unknown): Record<string, ModelPriceEntry> {
+  const index: Record<string, ModelPriceEntry> = {};
+  if (!Array.isArray(rows)) return index;
+  for (const row of rows) {
+    if (typeof row !== 'object' || row === null) continue;
+    const raw = row as Record<string, unknown>;
+    const provider = typeof raw.provider === 'string' ? raw.provider.trim() : '';
+    const model = typeof raw.model === 'string' ? raw.model.trim() : '';
+    const input = raw.inputPerMillion;
+    const output = raw.outputPerMillion;
+    if (!provider || !model) continue;
+    if (typeof input !== 'number' || typeof output !== 'number') continue;
+    const cached =
+      typeof raw.cachedInputPerMillion === 'number'
+        ? raw.cachedInputPerMillion
+        : null;
+    const entry: ModelPriceEntry = {
+      inputPerMillion: input,
+      cachedInputPerMillion: cached,
+      outputPerMillion: output,
+      source: typeof raw.source === 'string' ? raw.source : 'manual',
+    };
+    index[`${provider}:${model}`] = entry;
+  }
+  return index;
+}
+
+/** Một model dự phòng đã lưu trong config (baseUrl chỉ dùng cho openai-compatible). */
+interface FallbackEntry {
+  provider: string;
+  model: string;
+  baseUrl?: string;
+}
+
+/** Hàng model dự phòng trong form — `custom` chỉ dùng cho UI (nhập tay), không lưu. */
+interface FallbackRow {
+  provider: string;
+  model: string;
+  baseUrl?: string;
+  custom?: boolean;
+}
+
+/** Trạng thái key của một provider theo GET /api/ai-keys (chỉ nhận bản masked). */
+interface ProviderKeyState {
+  id: string;
+  label: string;
+  envName: string;
+  /** Danh sách key masked ("***abcd") lưu trong DB — key đầu tiên là key đang dùng. */
+  keys: string[];
+  /** Key env (masked) được dùng khi DB chưa có key nào. */
+  envFallback: string | null;
+  count: number;
+}
+
+/** Chuẩn hóa danh sách fallback từ dữ liệu backend — bỏ qua phần tử lỗi. */
+function toFallbackRows(value: unknown): FallbackRow[] {
+  if (!Array.isArray(value)) return [];
+  const rows: FallbackRow[] = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) continue;
+    const raw = item as Record<string, unknown>;
+    const provider = typeof raw.provider === 'string' ? raw.provider.trim() : '';
+    const model = typeof raw.model === 'string' ? raw.model.trim() : '';
+    if (provider.length === 0 || model.length === 0) continue;
+    const row: FallbackRow = { provider, model, custom: false };
+    if (typeof raw.baseUrl === 'string' && raw.baseUrl.trim().length > 0) {
+      row.baseUrl = raw.baseUrl.trim();
+    }
+    rows.push(row);
+  }
+  return rows;
 }
 
 function SourceBadge({ source }: { source: AiModelConfigSource }) {
@@ -155,7 +281,7 @@ function getProviderOptions(
     const direct: ProviderOption[] = catalog.directProviders.map((entry) => ({
       value: entry.id,
       label: `${entry.label} (trực tiếp)`,
-      hint: `Gọi thẳng ${entry.label} — cần ${entry.apiKeyEnv} trên server. ${
+      hint: `Gọi thẳng ${entry.label} — đặt API key ngay ô bên dưới (hỗ trợ nhiều key dự phòng; hoặc env ${entry.apiKeyEnv}). ${
         entry.visionModels.length > 0
           ? 'Danh sách gợi ý đã lọc model có khả năng đọc ảnh.'
           : 'Không có model đọc ảnh gợi ý — chọn “Nhập model khác…”.'
@@ -190,7 +316,7 @@ function getProviderOptions(
       .map((entry) => ({
         value: entry.id,
         label: `${entry.label} (trực tiếp)`,
-        hint: `Gọi thẳng ${entry.label} — cần ${entry.apiKeyEnv} trên server. Chú ý kích thước vector của model phải khớp index RAG hiện có.`,
+        hint: `Gọi thẳng ${entry.label} — đặt API key ngay ô bên dưới (hỗ trợ nhiều key dự phòng; hoặc env ${entry.apiKeyEnv}). Chú ý kích thước vector của model phải khớp index RAG hiện có.`,
         supportsBaseUrl: entry.supportsBaseUrl,
       }));
 
@@ -216,7 +342,7 @@ function getProviderOptions(
     (entry) => ({
       value: entry.id,
       label: entry.label,
-      hint: `Cần ${entry.apiKeyEnv} trên server. Chọn model ở ô bên cạnh hoặc nhập model khác.`,
+      hint: `Đặt API key ngay ô bên dưới (hỗ trợ nhiều key dự phòng; hoặc env ${entry.apiKeyEnv}). Chọn model ở ô bên cạnh hoặc nhập model khác.`,
       supportsBaseUrl: entry.supportsBaseUrl,
     }),
   );
@@ -296,10 +422,14 @@ function normalizeInitialProvider(
 function CapabilityForm({
   status,
   catalog,
+  keyStates,
+  priceIndex,
   onChanged,
 }: {
   status: CapabilityStatus;
   catalog: ModelCatalog;
+  keyStates: Record<string, ProviderKeyState>;
+  priceIndex: Record<string, ModelPriceEntry>;
   onChanged: () => void;
 }) {
   const [provider, setProvider] = useState(status.provider);
@@ -307,21 +437,37 @@ function CapabilityForm({
   const [model, setModel] = useState(status.model ?? '');
   const [enabled, setEnabled] = useState(status.enabled);
   const [baseUrl, setBaseUrl] = useState('');
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [fallbacks, setFallbacks] = useState<FallbackRow[]>(() =>
+    toFallbackRows(status.fallbacks),
+  );
   const [configJson, setConfigJson] = useState(status.configJson);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deletingKeys, setDeletingKeys] = useState(false);
 
-  // base_url nằm trong config JSON nhưng có ô riêng — tách ra lúc mount.
+  // base_url và fallbacks nằm trong config JSON nhưng có ô riêng — tách ra lúc
+  // mount để người dùng không phải sửa JSON tay, ghép lại lúc Lưu.
   useEffect(() => {
     if (status.configJson.trim().length === 0) return;
     try {
       const parsed = JSON.parse(status.configJson) as Record<string, unknown>;
+      const rest = { ...parsed };
+      let touched = false;
       if (typeof parsed.base_url === 'string') {
         setBaseUrl(parsed.base_url);
-        const rest = { ...parsed };
         delete rest.base_url;
+        touched = true;
+      }
+      const parsedFallbacks = toFallbackRows(parsed.fallbacks);
+      if (parsedFallbacks.length > 0) {
+        setFallbacks(parsedFallbacks);
+        delete rest.fallbacks;
+        touched = true;
+      }
+      if (touched) {
         setConfigJson(
           Object.keys(rest).length > 0 ? JSON.stringify(rest, null, 2) : '',
         );
@@ -361,10 +507,120 @@ function CapabilityForm({
 
   const providerHint = activeProviderOption?.hint ?? '';
   const showBaseUrl = activeProviderOption?.supportsBaseUrl ?? false;
+  // Provider trực tiếp / openai-compatible cho phép đặt key ngay trong form.
+  const showApiKeyField =
+    provider !== 'mock' && provider !== 'vision' && provider !== 'gateway';
+  const providerKeyState = keyStates[provider];
+  const savedKeys = providerKeyState?.keys ?? [];
+  const envFallback = providerKeyState?.envFallback ?? null;
+  const pendingKeys = useMemo(
+    () =>
+      apiKeyInput
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0),
+    [apiKeyInput],
+  );
+  // Provider trực tiếp cần key: DB đã có, env có dự phòng, hoặc đang nhập mới.
+  const needsKey =
+    showApiKeyField &&
+    savedKeys.length === 0 &&
+    !envFallback &&
+    pendingKeys.length === 0;
+
+  // Lựa chọn provider cho hàng model dự phòng: direct + gateway + openai-compatible.
+  const fallbackProviderOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = catalog.directProviders.map(
+      (entry) => ({ value: entry.id, label: entry.label + ' (trực tiếp)' }),
+    );
+    options.push({
+      value: 'openai-compatible',
+      label: 'OpenAI-compatible (tuỳ chỉnh)',
+    });
+    options.push({ value: 'gateway', label: 'AI Gateway' });
+    return options;
+  }, [catalog]);
+
+  function updateFallback(index: number, patch: Partial<FallbackRow>) {
+    setFallbacks((rows) =>
+      rows.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    );
+  }
+
+  function moveFallback(index: number, direction: -1 | 1) {
+    setFallbacks((rows) => {
+      const target = index + direction;
+      const current = rows[index];
+      const other = rows[target];
+      if (target < 0 || target >= rows.length || !current || !other) return rows;
+      const next = [...rows];
+      next[index] = other;
+      next[target] = current;
+      return next;
+    });
+  }
+
+  function removeFallback(index: number) {
+    setFallbacks((rows) => rows.filter((_, i) => i !== index));
+  }
+
+  function addFallback() {
+    const defaultProvider =
+      fallbackProviderOptions[0]?.value ?? 'openai-compatible';
+    setFallbacks((rows) => [
+      ...rows,
+      { provider: defaultProvider, model: '', custom: false },
+    ]);
+  }
+
+  /** Gom các hàng fallback hợp lệ thành payload lưu vào config.fallbacks. */
+  function buildFallbackEntries(): FallbackEntry[] {
+    const entries: FallbackEntry[] = [];
+    for (const row of fallbacks) {
+      const rowProvider = row.provider.trim();
+      const rowModel = row.model.trim();
+      if (rowProvider.length === 0 || rowModel.length === 0) continue;
+      const rowBaseUrl = (row.baseUrl ?? '').trim();
+      entries.push(
+        rowBaseUrl.length > 0
+          ? { provider: rowProvider, model: rowModel, baseUrl: rowBaseUrl }
+          : { provider: rowProvider, model: rowModel },
+      );
+    }
+    return entries;
+  }
 
   async function handleSave() {
     setError(null);
     setSuccess(null);
+
+    if (needsKey) {
+      setError('Nhập ít nhất một API key cho provider này để lưu cấu hình.');
+      return;
+    }
+
+    // Lưu API key (THAY THẾ toàn bộ danh sách của provider) TRƯỚC cấu hình —
+    // key là điều kiện để capability chạy được; lỗi key thì dừng, không lưu config.
+    if (showApiKeyField && pendingKeys.length > 0) {
+      try {
+        const keyRes = await fetch('/api/ai-keys', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, keys: pendingKeys }),
+        });
+        const keyJson = (await keyRes.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        if (!keyRes.ok) {
+          setError(keyJson?.message ?? 'Không lưu được API key.');
+          return;
+        }
+        setApiKeyInput('');
+      } catch {
+        setError('Lỗi kết nối khi lưu API key. Vui lòng thử lại.');
+        return;
+      }
+    }
 
     let config: Record<string, unknown> = {};
     const trimmed = configJson.trim();
@@ -386,6 +642,12 @@ function CapabilityForm({
     const trimmedBaseUrl = baseUrl.trim();
     if (trimmedBaseUrl.length > 0) {
       config = { ...config, base_url: trimmedBaseUrl };
+    }
+    // Model dự phòng: gộp vào config (backend lưu nguyên jsonb). Danh sách rỗng
+    // nghĩa là xóa fallback — fallbacks đã được tách khỏi configJson lúc mount.
+    const fallbackEntries = buildFallbackEntries();
+    if (fallbackEntries.length > 0) {
+      config = { ...config, fallbacks: fallbackEntries };
     }
 
     setSaving(true);
@@ -414,6 +676,40 @@ function CapabilityForm({
       setError('Lỗi kết nối. Vui lòng thử lại.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  /** DELETE /api/ai-keys — gỡ toàn bộ danh sách key DB của provider đang chọn. */
+  async function handleDeleteKeys() {
+    if (
+      !window.confirm(
+        'Xóa toàn bộ danh sách API key đã lưu cho provider này? App sẽ quay về dùng key env (nếu có).',
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+    setDeletingKeys(true);
+    try {
+      const res = await fetch('/api/ai-keys', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider }),
+      });
+      const json = (await res.json().catch(() => null)) as {
+        message?: string;
+      } | null;
+      if (!res.ok) {
+        setError(json?.message ?? 'Không xóa được API key.');
+        return;
+      }
+      setSuccess('Đã xóa danh sách API key của provider này.');
+      onChanged();
+    } catch {
+      setError('Lỗi kết nối. Vui lòng thử lại.');
+    } finally {
+      setDeletingKeys(false);
     }
   }
 
@@ -494,6 +790,7 @@ function CapabilityForm({
               if (value === null) return;
               setProvider(value);
               setCustomModel(false);
+              setApiKeyInput('');
               // Đổi provider → danh sách model đổi; giữ model nếu vẫn hợp lệ,
               // ngược lại xóa trắng để người dùng chọn lại.
               if (!getModelOptions(status.capability, value, catalog).includes(model)) {
@@ -558,11 +855,22 @@ function CapabilityForm({
                 <SelectItem value={NO_MODEL_VALUE}>
                   — Không chọn (dùng mặc định của provider) —
                 </SelectItem>
-                {modelOptions.map((id) => (
-                  <SelectItem key={id} value={id}>
-                    {id}
-                  </SelectItem>
-                ))}
+                {modelOptions.map((id) => {
+                  const price = lookupModelPrice(priceIndex, provider, id);
+                  const priceLabel = modelPriceLabel(price);
+                  return (
+                    <SelectItem key={id} value={id}>
+                      <span className="flex w-full min-w-0 items-center justify-between gap-3">
+                        <span className="truncate font-mono text-xs">{id}</span>
+                        {priceLabel && (
+                          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                            {priceLabel}
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
                 <SelectItem value={CUSTOM_MODEL_VALUE}>
                   Nhập model khác…
                 </SelectItem>
@@ -604,6 +912,73 @@ function CapabilityForm({
         )}
       </div>
 
+      {showApiKeyField && (
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label htmlFor={`api-key-${status.capability}`}>
+              API key{' '}
+              <span className="font-normal">
+                {activeProviderOption?.label ?? provider}
+              </span>
+            </Label>
+            {savedKeys.length > 0 && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={handleDeleteKeys}
+                disabled={saving || deletingKeys}
+              >
+                {deletingKeys ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Trash2 size={12} />
+                )}
+                Xóa danh sách key
+              </Button>
+            )}
+          </div>
+
+          {savedKeys.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {savedKeys.map((keyMasked, index) => (
+                <Badge
+                  key={keyMasked + '-' + index}
+                  variant={index === 0 ? 'secondary' : 'outline'}
+                >
+                  {index === 0 ? 'Đang dùng · ' : 'Dự phòng · '}
+                  {keyMasked}
+                </Badge>
+              ))}
+            </div>
+          ) : envFallback ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline">Đang dùng env: {envFallback}</Badge>
+              <span className="text-xs text-muted-foreground">
+                {providerKeyState?.envName}
+              </span>
+            </div>
+          ) : null}
+
+          <Textarea
+            id={`api-key-${status.capability}`}
+            value={apiKeyInput}
+            onChange={(e) => setApiKeyInput(e.target.value)}
+            placeholder="Mỗi dòng một API key — dán nhiều key để dự phòng"
+            rows={3}
+            className="font-mono text-xs"
+            disabled={saving}
+          />
+          <p className="text-xs text-muted-foreground">
+            {savedKeys.length > 0
+              ? 'Nhập key mới sẽ thay thế toàn bộ danh sách đã lưu (mỗi dòng một key). '
+              : ''}
+            Key lưu trong DB của bạn (write-only, không hiển thị lại), ưu tiên
+            trước env và dùng chung cho mọi capability dùng provider này. Khi
+            một key lỗi (hết hạn mức/sai), app tự chuyển sang key kế tiếp.
+          </p>
+        </div>
+      )}
+
       {showBaseUrl && (
         <div className="space-y-1.5">
           <Label htmlFor={`base-url-${status.capability}`}>
@@ -624,6 +999,206 @@ function CapabilityForm({
             Dùng khi trỏ sang proxy hoặc endpoint tương thích. Lưu vào
             config.base_url.
           </p>
+        </div>
+      )}
+
+      {provider !== 'mock' && (
+        <div className="space-y-2 rounded-xl border p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <Label>Model dự phòng (fallback)</Label>
+              <p className="text-xs text-muted-foreground">
+                Model dự phòng được thử theo thứ tự khi model chính lỗi (key
+                sai, hết hạn mức, model 404…).
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addFallback}
+              disabled={saving}
+            >
+              <Plus size={14} />
+              Thêm model dự phòng
+            </Button>
+          </div>
+
+          {fallbacks.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Chưa có model dự phòng — chỉ dùng model chính đã chọn phía trên.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {fallbacks.map((row, index) => {
+                const rowModelOptions = getModelOptions(
+                  status.capability,
+                  row.provider,
+                  catalog,
+                );
+                const useCustomInput =
+                  row.custom === true ||
+                  rowModelOptions.length === 0 ||
+                  (row.model.length > 0 && !rowModelOptions.includes(row.model));
+                return (
+                  <div
+                    key={'fallback-' + index + '-' + row.provider}
+                    className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-2 sm:flex-row sm:items-center"
+                  >
+                    <Select
+                      value={row.provider}
+                      onValueChange={(value) => {
+                        if (!value) return;
+                        // Đổi provider → model cũ không còn hợp lệ, xóa trắng.
+                        updateFallback(index, {
+                          provider: value,
+                          model: '',
+                          custom: false,
+                          baseUrl: undefined,
+                        });
+                      }}
+                      disabled={saving}
+                    >
+                      <SelectTrigger className="w-full shrink-0 sm:w-48">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fallbackProviderOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                        {!fallbackProviderOptions.some(
+                          (option) => option.value === row.provider,
+                        ) && (
+                          <SelectItem value={row.provider}>
+                            {row.provider}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+
+                    {useCustomInput ? (
+                      <div className="flex min-w-0 flex-1 items-center gap-1">
+                        <Input
+                          value={row.model}
+                          onChange={(e) =>
+                            updateFallback(index, { model: e.target.value })
+                          }
+                          placeholder="Tên model dự phòng"
+                          maxLength={200}
+                          disabled={saving}
+                        />
+                        {rowModelOptions.length > 0 && (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="h-auto shrink-0 p-0 text-xs"
+                            onClick={() => updateFallback(index, { custom: false })}
+                            disabled={saving}
+                          >
+                            Chọn từ danh sách
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Select
+                        value={
+                          rowModelOptions.includes(row.model)
+                            ? row.model
+                            : NO_MODEL_VALUE
+                        }
+                        onValueChange={(value) => {
+                          if (!value) return;
+                          if (value === CUSTOM_MODEL_VALUE) {
+                            updateFallback(index, { custom: true });
+                            return;
+                          }
+                          updateFallback(index, { model: value, custom: false });
+                        }}
+                        disabled={saving}
+                      >
+                        <SelectTrigger className="w-full sm:flex-1">
+                          <SelectValue placeholder="Chọn model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NO_MODEL_VALUE}>
+                            — Chọn model —
+                          </SelectItem>
+                          {rowModelOptions.map((id) => {
+                            const fallbackPrice = lookupModelPrice(
+                              priceIndex,
+                              row.provider,
+                              id,
+                            );
+                            const fallbackPriceLabel = modelPriceLabel(fallbackPrice);
+                            return (
+                              <SelectItem key={id} value={id}>
+                                <span className="flex w-full min-w-0 items-center justify-between gap-3">
+                                  <span className="truncate font-mono text-xs">{id}</span>
+                                  {fallbackPriceLabel && (
+                                    <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                                      {fallbackPriceLabel}
+                                    </span>
+                                  )}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
+                          <SelectItem value={CUSTOM_MODEL_VALUE}>
+                            Nhập model khác…
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    {row.provider === 'openai-compatible' && (
+                      <Input
+                        value={row.baseUrl ?? ''}
+                        onChange={(e) =>
+                          updateFallback(index, { baseUrl: e.target.value })
+                        }
+                        placeholder="Base URL (bắt buộc với openai-compatible)"
+                        inputMode="url"
+                        maxLength={500}
+                        disabled={saving}
+                        className="w-full sm:w-64"
+                      />
+                    )}
+
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label="Chuyển model dự phòng lên trên"
+                        onClick={() => moveFallback(index, -1)}
+                        disabled={saving || index === 0}
+                      >
+                        <ArrowUp size={12} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label="Chuyển model dự phòng xuống dưới"
+                        onClick={() => moveFallback(index, 1)}
+                        disabled={saving || index === fallbacks.length - 1}
+                      >
+                        <ArrowDown size={12} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label="Xóa model dự phòng"
+                        onClick={() => removeFallback(index)}
+                        disabled={saving}
+                      >
+                        <Trash2 size={12} />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -674,9 +1249,9 @@ function CapabilityForm({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={handleSave} disabled={saving || deleting}>
+        <Button onClick={handleSave} disabled={saving || deleting || needsKey}>
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          Lưu cấu hình
+          {needsKey ? 'Nhập API key để lưu' : 'Lưu cấu hình'}
         </Button>
         {status.source === 'database' && (
           <Button
@@ -700,10 +1275,14 @@ function CapabilityForm({
 function CapabilityCard({
   status,
   catalog,
+  keyStates,
+  priceIndex,
   onChanged,
 }: {
   status: CapabilityStatus;
   catalog: ModelCatalog;
+  keyStates: Record<string, ProviderKeyState>;
+  priceIndex: Record<string, ModelPriceEntry>;
   onChanged: () => void;
 }) {
   return (
@@ -727,8 +1306,175 @@ function CapabilityCard({
           key={`${status.capability}::${status.updatedAt ?? 'none'}`}
           status={status}
           catalog={catalog}
+          keyStates={keyStates}
+          priceIndex={priceIndex}
           onChanged={onChanged}
         />
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Ngân sách chi phí theo capability (agent_config.budgets)
+// ---------------------------------------------------------------------------
+
+/** Các capability chính được đặt ngưỡng — khớp capability thật của app. */
+const BUDGET_CAPABILITIES: Array<{ id: string; label: string }> = [
+  { id: 'card_recognition', label: 'Nhận dạng danh thiếp' },
+  { id: 'lead_enrichment', label: 'Làm giàu lead' },
+  { id: 'followup_draft', label: 'Soạn follow-up' },
+  { id: 'sourcing_assist', label: 'Hỗ trợ sourcing' },
+  { id: 'rag_chat', label: 'Chat RAG' },
+  { id: 'rag_embeddings', label: 'Embeddings RAG' },
+];
+
+/**
+ * Section "Ngân sách chi phí" — ngưỡng USD/tháng cho từng capability.
+ * Lưu qua PATCH /api/agent/config { budgets } — ô trống = không giới hạn
+ * (gửi `monthly_usd: null` để xóa ngưỡng đã lưu).
+ */
+function BudgetsSection() {
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/agent/config');
+      const json = (await res.json().catch(() => null)) as {
+        budgets?: Record<string, { monthly_usd?: number }>;
+      } | null;
+      if (res.ok && json) {
+        const next: Record<string, string> = {};
+        for (const { id } of BUDGET_CAPABILITIES) {
+          const usd = json.budgets?.[id]?.monthly_usd;
+          next[id] = typeof usd === 'number' ? String(usd) : '';
+        }
+        setValues(next);
+      }
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function handleSave() {
+    setError(null);
+    setSuccess(null);
+
+    const budgets: Record<string, { monthly_usd: number | null }> = {};
+    for (const { id } of BUDGET_CAPABILITIES) {
+      const raw = (values[id] ?? '').trim();
+      if (raw.length === 0) {
+        budgets[id] = { monthly_usd: null };
+        continue;
+      }
+      const num = Number(raw);
+      if (!Number.isFinite(num) || num < 0) {
+        setError('Ngân sách phải là số không âm (USD/tháng).');
+        return;
+      }
+      budgets[id] = { monthly_usd: num };
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/agent/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ budgets }),
+      });
+      const json = (await res.json().catch(() => null)) as {
+        message?: string;
+      } | null;
+      if (!res.ok) {
+        setError(json?.message ?? 'Không lưu được ngân sách.');
+        return;
+      }
+      setSuccess('Đã lưu ngân sách chi phí.');
+    } catch {
+      setError('Lỗi kết nối. Vui lòng thử lại.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Ngân sách chi phí</CardTitle>
+        <CardDescription>
+          Giới hạn chi phí USD/tháng cho từng capability AI. Ô trống = không
+          giới hạn. Vượt ngưỡng tháng hiện tại → capability tự tắt + ghi audit.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!loaded ? (
+          <Skeleton className="h-24 w-full" />
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {BUDGET_CAPABILITIES.map(({ id, label }) => (
+                <div key={id} className="space-y-1.5">
+                  <Label htmlFor={'budget-' + id}>{label}</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id={'budget-' + id}
+                      type="number"
+                      min={0}
+                      step="any"
+                      inputMode="decimal"
+                      value={values[id] ?? ''}
+                      onChange={(e) =>
+                        setValues((v) => ({ ...v, [id]: e.target.value }))
+                      }
+                      placeholder="Không giới hạn"
+                      disabled={saving}
+                      className="w-full"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      USD/tháng
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {error && (
+              <p className="text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            )}
+            {success && (
+              <p className="text-sm text-emerald-600" role="status">
+                {success}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <Button size="sm" disabled={saving} onClick={() => void handleSave()}>
+                {saving ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                Lưu ngân sách
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={saving}
+                onClick={() => void load()}
+              >
+                Làm mới
+              </Button>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
@@ -749,18 +1495,59 @@ export function AiModelEditor() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/ai-models');
-      const json = (await res.json().catch(() => null)) as
+      const [modelsRes, keysRes, pricesRes] = await Promise.all([
+        fetch('/api/ai-models'),
+        fetch('/api/ai-keys').catch(() => null),
+        fetch('/api/admin/prices').catch(() => null),
+      ]);
+      const json = (await modelsRes.json().catch(() => null)) as
         | (EditorData & { message?: string })
         | null;
-      if (!res.ok || !json) {
+      if (!modelsRes.ok || !json) {
         setError(json?.message ?? 'Không tải được danh sách cấu hình.');
         return;
       }
+
+      // GET /api/admin/prices lỗi không chặn trang — chỉ mất nhãn giá trên
+      // danh sách model.
+      // GET /api/ai-keys lỗi không chặn trang — chỉ mất badge trạng thái key.
+      const keyStates: Record<string, ProviderKeyState> = {};
+      if (keysRes && keysRes.ok) {
+        const keysJson = (await keysRes.json().catch(() => null)) as {
+          providers?: ProviderKeyState[];
+        } | null;
+        for (const entry of keysJson?.providers ?? []) {
+          if (!entry || typeof entry.id !== 'string') continue;
+          keyStates[entry.id] = {
+            id: entry.id,
+            label: typeof entry.label === 'string' ? entry.label : entry.id,
+            envName: typeof entry.envName === 'string' ? entry.envName : '',
+            keys: Array.isArray(entry.keys)
+              ? entry.keys.filter((key) => typeof key === 'string')
+              : [],
+            envFallback:
+              typeof entry.envFallback === 'string' ? entry.envFallback : null,
+            count:
+              typeof entry.count === 'number'
+                ? entry.count
+                : Array.isArray(entry.keys)
+                  ? entry.keys.length
+                  : 0,
+          };
+        }
+      }
+
+      // GET /api/admin/prices lỗi không chặn trang — chỉ mất nhãn giá.
+      const pricesJson = pricesRes && pricesRes.ok
+        ? ((await pricesRes.json().catch(() => null)) as { prices?: unknown } | null)
+        : null;
+
       setData({
         configs: json.configs ?? [],
         capabilities: json.capabilities ?? [],
         catalog: json.catalog ?? EMPTY_CATALOG,
+        keyStates,
+        priceIndex: buildPriceIndex(pricesJson?.prices),
       });
     } catch {
       setError('Lỗi kết nối. Vui lòng thử lại.');
@@ -822,12 +1609,15 @@ export function AiModelEditor() {
         envModel: null,
         envEnabled: false,
         configJson: '',
+        fallbacks: [],
         updatedAt: null,
       }
     : null;
 
   return (
     <div className="space-y-5">
+      <BudgetsSection />
+
       {data.catalog.source === 'static' && (
         <p className="text-xs text-muted-foreground">
           Không tải được danh sách model từ AI Gateway — đang dùng danh sách
@@ -841,6 +1631,8 @@ export function AiModelEditor() {
           key={status.capability}
           status={status}
           catalog={data.catalog}
+          keyStates={data.keyStates}
+          priceIndex={data.priceIndex}
           onChanged={load}
         />
       ))}
@@ -860,9 +1652,12 @@ export function AiModelEditor() {
             envModel: null,
             envEnabled: false,
             configJson: JSON.stringify(row.config ?? {}, null, 2),
+            fallbacks: toFallbackRows(row.config?.fallbacks),
             updatedAt: row.updated_at,
           }}
           catalog={data.catalog}
+          keyStates={data.keyStates}
+          priceIndex={data.priceIndex}
           onChanged={load}
         />
       ))}
@@ -904,6 +1699,8 @@ export function AiModelEditor() {
                 key={`draft::${draftStatus.capability}`}
                 status={draftStatus}
                 catalog={data.catalog}
+                keyStates={data.keyStates}
+                priceIndex={data.priceIndex}
                 onChanged={() => {
                   setNewCapability('');
                   void load();

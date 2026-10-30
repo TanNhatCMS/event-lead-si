@@ -8,6 +8,7 @@ import { requireUserInServerComponent } from '~/lib/server/require-user-in-serve
 // Lưu ý: tsconfig map `~/*` -> `./app/*` nên `~/features/...` không resolve;
 // features nằm ở apps/web/features -> dùng import tương đối.
 import { ContactDetail } from '../../../../features/contacts/contact-detail';
+import { ContactTimeline } from '../../../../features/contacts/contact-timeline';
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -15,7 +16,7 @@ type PageProps = { params: Promise<{ id: string }> };
 export const instant = false;
 
 /**
- * Trang chi tiết liên hệ: xem, sửa, xem nguồn gốc dữ liệu, lưu trữ/xóa.
+ * Trang chi tiết liên hệ: xem, sửa, timeline hoạt động, lưu trữ/xóa.
  */
 export default async function ContactDetailPage({ params }: PageProps) {
   await requireUserInServerComponent();
@@ -27,7 +28,7 @@ export default async function ContactDetailPage({ params }: PageProps) {
         title="Chi tiết liên hệ"
         description={
           <Link
-            href="/home/danh-ba"
+            href="/dashboard/danh-ba"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" /> Về danh bạ
@@ -36,8 +37,9 @@ export default async function ContactDetailPage({ params }: PageProps) {
       />
 
       <PageBody>
-        <div className="mx-auto w-full max-w-3xl">
+        <div className="mx-auto w-full max-w-3xl space-y-5">
           <ContactDetail contactId={id} />
+          <ContactTimeline contactId={id} />
         </div>
       </PageBody>
     </>

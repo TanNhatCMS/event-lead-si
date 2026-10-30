@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Copy, KeyRound, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { Copy, KeyRound, Loader2, Trash2 } from 'lucide-react';
 
 import {
   Alert,

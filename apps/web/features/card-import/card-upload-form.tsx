@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Camera } from "lucide-react";
 
 import { getSupabaseBrowserClient } from "@kit/supabase/browser-client";
 
@@ -8,12 +9,13 @@ type UploadResult = { import_id: string; path: string; token: string };
 
 export function CardUploadForm() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
-  async function submitFiles(files: FileList | null) {
-    if (!files?.length) return;
+  async function submitFiles(files: FileList | File[] | null) {
+    if (!files || files.length === 0) return;
     setBusy(true);
     setMessage(null);
     setError(false);
@@ -56,6 +58,7 @@ export function CardUploadForm() {
     }
     setBusy(false);
     if (inputRef.current) inputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
   }
 
   return (
@@ -68,6 +71,15 @@ export function CardUploadForm() {
         className="sr-only"
         onChange={(event) => void submitFiles(event.currentTarget.files)}
       />
+      {/* capture="environment": trên điện thoại mở thẳng app camera sau */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        onChange={(event) => void submitFiles(event.currentTarget.files)}
+      />
       <button
         type="button"
         disabled={busy}
@@ -77,6 +89,15 @@ export function CardUploadForm() {
         <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">{busy ? "…" : "↑"}</span>
         <span className="mt-4 text-sm font-semibold text-slate-800">{busy ? "Đang tải danh thiếp…" : "Chọn ảnh danh thiếp để tải lên"}</span>
         <span className="mt-1 text-xs text-slate-500">JPEG, PNG, WebP hoặc HEIC · tối đa 10 MB mỗi ảnh · tối đa 10 ảnh/lần</span>
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => cameraInputRef.current?.click()}
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+      >
+        <Camera className="h-4 w-4" aria-hidden="true" />
+        Chụp bằng camera
       </button>
       {message && <p role="status" className={`rounded-lg px-3 py-2 text-sm ${error ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{message}</p>}
     </div>

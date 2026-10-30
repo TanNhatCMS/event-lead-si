@@ -11,6 +11,10 @@ import {
   isDirectProviderId,
   resolveCardRecognitionConfig,
 } from "~/lib/ai/model-config";
+import {
+  buildFallbackLinks,
+  resolveProviderKeys,
+} from "./model-failover";
 import { VisionCardRecognitionProvider } from "./vision-provider";
 
 /**
@@ -151,6 +155,9 @@ export interface GetCardRecognitionProviderOpts {
  * - `"vision"`: model AI có khả năng xem ảnh qua AI Gateway — OCR thật
  *   theo quyết định của người dùng ngày 2026-10-13. Model lấy từ cấu hình
  *   capability `card_recognition` (DB) hoặc env `CARD_RECOGNITION_MODEL`.
+ * - FAILOVER: provider vision nhận thêm chuỗi key của provider chính
+ *   (`resolveProviderKeys`) và các model dự phòng đã kèm keys
+ *   (`buildFallbackLinks` từ `config.fallbacks` của capability).
  */
 export async function getCardRecognitionProvider(
   opts?: GetCardRecognitionProviderOpts,
@@ -161,15 +168,37 @@ export async function getCardRecognitionProvider(
     resolved.model?.trim() || (process.env.CARD_RECOGNITION_MODEL ?? "").trim();
 
   if (provider === "vision" || provider === "gateway") {
-    return new VisionCardRecognitionProvider({ provider: "vision", model });
+    const keys = await resolveProviderKeys(provider, opts?.userId, opts?.supabase);
+    const fallbacks = await buildFallbackLinks(
+      resolved.fallbacks,
+      opts?.userId,
+      opts?.supabase,
+    );
+    return new VisionCardRecognitionProvider({
+      provider: "vision",
+      model,
+      keys,
+      fallbacks,
+      source: resolved.source,
+    });
   }
 
   // Provider trực tiếp (openai, anthropic, google, …): gọi thẳng nhà cung cấp.
   if (provider !== "mock" && isDirectProviderId(provider)) {
+    const keys = await resolveProviderKeys(provider, opts?.userId, opts?.supabase);
+    const fallbacks = await buildFallbackLinks(
+      resolved.fallbacks,
+      opts?.userId,
+      opts?.supabase,
+    );
     return new VisionCardRecognitionProvider({
       provider,
       model,
       baseUrl: resolved.baseUrl,
+      apiKey: resolved.apiKey,
+      keys,
+      fallbacks,
+      source: resolved.source,
     });
   }
 

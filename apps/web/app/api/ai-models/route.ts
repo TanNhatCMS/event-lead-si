@@ -10,7 +10,9 @@ import type { Database, Json } from '@kit/supabase/database';
 import { isCardRecognitionEnabled } from '~/lib/ai/card-recognition';
 import {
   getAiModelConfig,
+  parseModelFallbacks,
   type AiModelConfigSource,
+  type ModelFallbackSpec,
 } from '~/lib/ai/model-config';
 import { getModelCatalog, type ModelCatalog } from '~/lib/ai/model-catalog';
 
@@ -88,6 +90,11 @@ export interface CapabilityStatus {
   model: string | null;
   enabled: boolean;
   source: AiModelConfigSource;
+  /**
+   * Chuỗi model dự phòng của capability (row.config.fallbacks trong DB,
+   * đã zod-validate; [] khi không có hoặc cấu hình đến từ env).
+   */
+  fallbacks: ModelFallbackSpec[];
   /** Trạng thái env hiện tại của server (để so sánh với DB). */
   envProvider: string;
   envModel: string | null;
@@ -164,6 +171,7 @@ async function buildCapabilityStatus(
     model: dbRow ? dbRow.model : envModel,
     enabled: dbRow ? dbRow.enabled : envEnabled,
     source: dbRow ? 'database' : 'env',
+    fallbacks: dbRow ? parseModelFallbacks(dbRow.config?.fallbacks) : [],
     envProvider,
     envModel,
     envEnabled,
@@ -264,7 +272,7 @@ export async function POST(request: Request) {
         provider,
         model,
         enabled,
-        config: config as Json,
+        config: config as NonNullable<Json>,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id,capability' },

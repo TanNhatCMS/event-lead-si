@@ -1,4 +1,4 @@
-import { Bot, Building2, Cpu, FileText, History, Home, Network, PackageSearch, Plug, ScanLine, ShieldCheck, User, Users } from 'lucide-react';
+import { BarChart3, Bot, Building2, Cpu, FileText, History, Home, Network, PackageSearch, Plug, ScanLine, ShieldCheck, User, Users } from 'lucide-react';
 import { z } from 'zod';
 
 import { NavigationConfigSchema } from '@kit/ui/navigation-schema';
@@ -100,6 +100,11 @@ const adminRoutes = [
         label: 'common.routes.aiPrompts',
         path: pathsConfig.app.aiPrompts,
         Icon: <FileText className={iconClasses} />,
+      },
+      {
+        label: 'common.routes.usageStats',
+        path: pathsConfig.app.usageStats,
+        Icon: <BarChart3 className={iconClasses} />,
       },
       {
         label: 'common.routes.auditLog',

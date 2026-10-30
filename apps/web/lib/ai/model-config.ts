@@ -14,6 +14,7 @@ import { createFireworks } from '@ai-sdk/fireworks';
 import { createCohere } from '@ai-sdk/cohere';
 import { createCerebras } from '@ai-sdk/cerebras';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@kit/supabase/database';
@@ -26,6 +27,39 @@ import { isCardRecognitionEnabled } from '~/lib/ai/card-recognition';
  * - "env": fallback sang biến môi trường server khi chưa có dòng cấu hình.
  */
 export type AiModelConfigSource = 'database' | 'env';
+
+/**
+ * Một model dự phòng trong chuỗi failover của một capability — shape của từng
+ * phần tử trong `ai_model_configs.config.fallbacks` (jsonb, không cần migration).
+ */
+export interface ModelFallbackSpec {
+  provider: string;
+  model: string;
+  baseUrl?: string;
+}
+
+const fallbackSpecSchema = z.object({
+  provider: z.string().trim().min(1),
+  model: z.string().trim().min(1),
+  baseUrl: z.string().trim().min(1).optional(),
+});
+
+/**
+ * Đọc + kiểm chứng `config.fallbacks` của một dòng `ai_model_configs`:
+ * array `{ provider, model, baseUrl? }`. Giữ lại từng phần tử hợp lệ, bỏ qua
+ * phần tử sai shape; giá trị không phải array (hoặc jsonb lỗi) → `[]`.
+ */
+export function parseModelFallbacks(value: unknown): ModelFallbackSpec[] {
+  if (!Array.isArray(value)) return [];
+  const result: ModelFallbackSpec[] = [];
+  for (const item of value) {
+    const parsed = fallbackSpecSchema.safeParse(item);
+    if (parsed.success) {
+      result.push(parsed.data);
+    }
+  }
+  return result;
+}
 
 export interface AiModelConfigRow {
   id: string;
@@ -46,6 +80,13 @@ export interface ResolvedCardRecognitionConfig {
   source: AiModelConfigSource;
   /** Base URL tuỳ chọn cho provider trực tiếp (config.base_url trong DB). */
   baseUrl: string | null;
+  /** API key từ DB cho provider trực tiếp — ưu tiên trước env. */
+  apiKey: string | null;
+  /**
+   * Chuỗi model dự phòng (config.fallbacks trong DB) — thử lần lượt khi
+   * model chính/key chính lỗi. Rỗng khi cấu hình đến từ env hoặc chưa đặt.
+   */
+  fallbacks: ModelFallbackSpec[];
 }
 
 /**
@@ -310,11 +351,21 @@ export interface ResolvedEnrichmentConfig {
   enabled: boolean;
   source: AiModelConfigSource;
   /**
+   * API key từ DB (agent_config.credentials) khi user đã đặt ở /admin/settings
+   * — ưu tiên trước env. null = dùng env của provider.
+   */
+  apiKey: string | null;
+  /**
    * Địa chỉ gốc tuỳ chọn cho OpenAI (chỉ dùng khi provider = "openai"):
    * ưu tiên `config.base_url` trong DB, fallback env `OPENAI_BASE_URL`;
    * `null` = endpoint mặc định của OpenAI do SDK tự dùng.
    */
   baseUrl: string | null;
+  /**
+   * Chuỗi model dự phòng (config.fallbacks trong DB) — thử lần lượt khi
+   * model chính/key chính lỗi. Rỗng khi cấu hình đến từ env hoặc chưa đặt.
+   */
+  fallbacks: ModelFallbackSpec[];
 }
 
 /**
@@ -360,8 +411,9 @@ export async function resolveCardRecognitionConfig(
   if (userId && supabase) {
     const row = await getAiModelConfig('card_recognition', userId, supabase);
     if (row) {
+      const provider = row.provider.trim().toLowerCase();
       return {
-        provider: row.provider,
+        provider,
         model: row.model,
         enabled: row.enabled,
         source: 'database',
@@ -369,6 +421,10 @@ export async function resolveCardRecognitionConfig(
           typeof row.config.base_url === 'string' && row.config.base_url.trim()
             ? row.config.base_url.trim()
             : null,
+        apiKey: isDirectProviderId(provider)
+          ? await getProviderCredential(provider, userId, supabase)
+          : null,
+        fallbacks: parseModelFallbacks(row.config.fallbacks),
       };
     }
   }
@@ -379,6 +435,8 @@ export async function resolveCardRecognitionConfig(
     enabled: isCardRecognitionEnabled(),
     source: 'env',
     baseUrl: null,
+    apiKey: null,
+    fallbacks: [],
   };
 }
 
@@ -400,12 +458,15 @@ export async function resolveEnrichmentConfig(
         typeof row.config.base_url === 'string'
           ? row.config.base_url.trim() || null
           : null;
+      const provider = normalizeEnrichmentProvider(row.provider);
       return {
-        provider: normalizeEnrichmentProvider(row.provider),
+        provider,
         model: row.model,
         enabled: row.enabled,
         source: 'database',
         baseUrl: configBaseUrl ?? getOpenAiBaseUrl(),
+        apiKey: await getProviderCredential(provider, userId, supabase),
+        fallbacks: parseModelFallbacks(row.config.fallbacks),
       };
     }
   }
@@ -416,6 +477,8 @@ export async function resolveEnrichmentConfig(
     enabled: Boolean(envModel),
     source: 'env',
     baseUrl: getOpenAiBaseUrl(),
+    apiKey: null,
+    fallbacks: [],
   };
 }
 
@@ -440,6 +503,51 @@ function getEnvApiKey(envName: string): string | null {
 }
 
 /**
+ * Giá trị API key env mặc định của một provider (server only) — dùng làm
+ * fallback cuối trong chuỗi key của failover:
+ * - "gateway"/"vision": AI_GATEWAY_API_KEY.
+ * - "openai-compatible": OPENAI_API_KEY.
+ * - provider trực tiếp: biến env riêng theo registry (vd OPENAI_API_KEY).
+ * Trả về `null` khi provider không rõ hoặc chưa đặt env.
+ */
+export function getProviderEnvKey(providerId: string): string | null {
+  const value = (providerId ?? '').trim().toLowerCase();
+  if (value === 'gateway' || value === 'vision') {
+    return getGatewayApiKey();
+  }
+  if (value === 'openai-compatible') {
+    return getOpenAiApiKey();
+  }
+  const definition = DIRECT_PROVIDER_REGISTRY[value as DirectProviderId];
+  return definition ? getEnvApiKey(definition.apiKeyEnv) : null;
+}
+
+/**
+ * API key của một provider lưu trong DB (`agent_config.credentials`, đặt từ
+ * khung API Keys ở /admin/settings) — ưu tiên trước env. Key tên field theo
+ * mẫu `${providerId}_api_key` (vd openai_api_key).
+ */
+export async function getProviderCredential(
+  providerId: string,
+  userId: string | null | undefined,
+  supabase?: SupabaseClient<Database>,
+): Promise<string | null> {
+  if (!userId || !supabase) return null;
+  try {
+    const { data } = await supabase
+      .from('agent_config')
+      .select('credentials')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const creds = data?.credentials as Record<string, unknown> | null;
+    const key = creds?.[`${providerId}_api_key`];
+    return typeof key === 'string' && key.trim() ? key.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Kiểm tra phần credential/endpoint theo provider đã phân giải.
  * Giả định caller đã kiểm tra `enabled` + `model`. Trả về thông điệp lỗi
  * thân thiện khi thiếu cấu hình, `null` khi đã đủ.
@@ -460,8 +568,8 @@ export function getEnrichmentConfigIssue(
     return null;
   }
   const definition = DIRECT_PROVIDER_REGISTRY[config.provider];
-  if (definition && !getEnvApiKey(definition.apiKeyEnv)) {
-    return `Chưa cấu hình ${definition.label} (thiếu ${definition.apiKeyEnv}).`;
+  if (definition && !config.apiKey && !getEnvApiKey(definition.apiKeyEnv)) {
+    return `Chưa cấu hình ${definition.label} (thiếu ${definition.apiKeyEnv}) — đặt key ở khung API Keys trong /admin/settings.`;
   }
   return null;
 }
@@ -473,16 +581,16 @@ export function getEnrichmentConfigIssue(
  */
 export function createDirectModel(
   provider: DirectProviderId,
-  opts: { model: string; baseUrl?: string | null },
+  opts: { model: string; baseUrl?: string | null; apiKey?: string | null },
 ): LanguageModel {
   const definition = DIRECT_PROVIDER_REGISTRY[provider];
   if (!definition) {
     throw new Error(`Provider không được hỗ trợ: ${provider}`);
   }
-  const apiKey = getEnvApiKey(definition.apiKeyEnv);
+  const apiKey = opts.apiKey?.trim() || getEnvApiKey(definition.apiKeyEnv);
   if (!apiKey) {
     throw new Error(
-      `Chưa cấu hình ${definition.label} (thiếu ${definition.apiKeyEnv}).`,
+      `Chưa cấu hình ${definition.label} (thiếu ${definition.apiKeyEnv}) — đặt key ở khung API Keys trong /admin/settings.`,
     );
   }
   const created = definition.create({
@@ -510,7 +618,7 @@ export const EMBEDDING_DIRECT_PROVIDERS: readonly DirectProviderId[] = [
  */
 export function createEmbeddingModel(
   provider: string,
-  opts: { model: string; baseUrl?: string | null },
+  opts: { model: string; baseUrl?: string | null; apiKey?: string | null },
 ): EmbeddingModel {
   const providerId = (provider ?? 'gateway').trim().toLowerCase();
   const model = opts.model.trim();
@@ -519,7 +627,8 @@ export function createEmbeddingModel(
   }
 
   if (providerId === 'gateway' || providerId === 'vision') {
-    const apiKey = getGatewayApiKey();
+    // opts.apiKey cho phép failover quay key tường minh thay vì chỉ env.
+    const apiKey = opts.apiKey?.trim() || getGatewayApiKey();
     if (!apiKey) {
       throw new Error(
         'Chưa cấu hình AI Gateway (thiếu AI_GATEWAY_API_KEY) — không thể tạo embedding.',
@@ -534,10 +643,11 @@ export function createEmbeddingModel(
         'Provider openai-compatible cần Base URL (config.base_url hoặc OPENAI_BASE_URL).',
       );
     }
+    const apiKey = opts.apiKey?.trim() || getOpenAiApiKey();
     const provider = createOpenAICompatible({
       name: 'openai-compatible',
       baseURL: opts.baseUrl,
-      ...(getOpenAiApiKey() ? { apiKey: getOpenAiApiKey() as string } : {}),
+      ...(apiKey ? { apiKey } : {}),
     });
     return provider.textEmbeddingModel(model);
   }
@@ -549,10 +659,10 @@ export function createEmbeddingModel(
   }
 
   const definition = DIRECT_PROVIDER_REGISTRY[providerId as DirectProviderId];
-  const apiKey = getEnvApiKey(definition.apiKeyEnv);
+  const apiKey = opts.apiKey?.trim() || getEnvApiKey(definition.apiKeyEnv);
   if (!apiKey) {
     throw new Error(
-      `Chưa cấu hình ${definition.label} (thiếu ${definition.apiKeyEnv}) — không thể tạo embedding.`,
+      `Chưa cấu hình ${definition.label} (thiếu ${definition.apiKeyEnv}) — không thể tạo embedding. Đặt key ở khung API Keys trong /admin/settings.`,
     );
   }
   const baseUrl = definition.supportsBaseUrl ? (opts.baseUrl ?? null) : null;
@@ -614,7 +724,9 @@ export function createEnrichmentModel(
     const provider = createOpenAICompatible({
       name: 'openai-compatible',
       baseURL: config.baseUrl as string,
-      ...(getOpenAiApiKey() ? { apiKey: getOpenAiApiKey() as string } : {}),
+      ...(config.apiKey || getOpenAiApiKey()
+        ? { apiKey: (config.apiKey ?? getOpenAiApiKey()) as string }
+        : {}),
     });
     return provider(config.model);
   }
@@ -622,5 +734,6 @@ export function createEnrichmentModel(
   return createDirectModel(config.provider, {
     model: config.model,
     baseUrl: config.baseUrl,
+    apiKey: config.apiKey,
   });
 }

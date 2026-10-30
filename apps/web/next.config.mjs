@@ -10,6 +10,13 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ENABLE_REACT_COMPILER = process.env.ENABLE_REACT_COMPILER === 'true';
 /** Set by the Docker build (apps/web/Dockerfile) to emit a standalone server. */
 const IS_STANDALONE_BUILD = process.env.NEXT_OUTPUT === 'standalone';
+/**
+ * Docker dev (docker-compose.dev.yml) bật biến này: file nằm trên bind mount
+ * từ Windows nên inotify không truyền qua — Turbopack cần polling watcher
+ * (fix từ Next 16.4, vercel/next.js#96440). Chạy trên host để unset.
+ */
+const IS_DOCKER_DEV = process.env.NEXT_DEV_POLLING === 'true';
+const DEV_POLL_INTERVAL_MS = Number(process.env.NEXT_DEV_POLLING_INTERVAL_MS ?? 1000);
 
 const INTERNAL_PACKAGES = [
   '@kit/ui',
@@ -26,6 +33,11 @@ const config = {
   reactStrictMode: true,
   /** Standalone server output, only for the Docker local-test image. */
   output: IS_STANDALONE_BUILD ? 'standalone' : undefined,
+  /**
+   * Turbopack polling watcher cho dev trong Docker qua bind mount Windows —
+   * xem ghi chú ở IS_DOCKER_DEV ở trên.
+   */
+  ...(IS_DOCKER_DEV && { watchOptions: { pollIntervalMs: DEV_POLL_INTERVAL_MS } }),
   /** Enables hot reloading for local packages without a build step */
   transpilePackages: INTERNAL_PACKAGES,
   images: {

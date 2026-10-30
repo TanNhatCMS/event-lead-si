@@ -7,13 +7,15 @@ import { cn } from '@kit/ui/utils';
 // Lưu ý: tsconfig map `~/*` -> `./app/*` nên `~/features/...` không resolve;
 // features nằm ở apps/web/features -> dùng import tương đối.
 import { AssistantChat } from '../chat/assistant-chat';
+import { EveChat } from './eve-chat';
 
 import { DocumentsPanel } from './documents-panel';
 
-type TabId = 'chat' | 'documents';
+type TabId = 'chat' | 'eve' | 'documents';
 
 /**
- * Tabs của trang Trợ lý: Đoạn chat (T009) và Tài liệu (T010).
+ * Tabs của trang Trợ lý: Đoạn chat RAG (T009), Trợ lý Agent (eve) và
+ * Tài liệu (T010).
  */
 export function AssistantTabs() {
   const [tab, setTab] = useState<TabId>('chat');
@@ -24,6 +26,7 @@ export function AssistantTabs() {
         {(
           [
             { id: 'chat', label: 'Đoạn chat' },
+            { id: 'eve', label: 'Trợ lý Agent (eve)' },
             { id: 'documents', label: 'Tài liệu' },
           ] as const
         ).map((t) => (
@@ -44,6 +47,8 @@ export function AssistantTabs() {
 
       {tab === 'chat' ? (
         <AssistantChat />
+      ) : tab === 'eve' ? (
+        <EveChat />
       ) : (
         <DocumentsPanel />
       )}

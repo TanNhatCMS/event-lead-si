@@ -75,24 +75,20 @@ redirect_uri = ""
 # or any other third-party OIDC providers.
 url = ""
 
-[auth.email.template.invite]
-subject = "You are invited to Makerkit"
-content_path = "./supabase/templates/invite-user.html"
-
 [auth.email.template.confirmation]
-subject = "Confirm your email"
+subject = "Xác nhận email EventLead"
 content_path = "./supabase/templates/confirm-email.html"
 
 [auth.email.template.recovery]
-subject = "Reset your password"
+subject = "Đặt lại mật khẩu EventLead"
 content_path = "./supabase/templates/reset-password.html"
 
 [auth.email.template.email_change]
-subject = "Confirm your email change"
+subject = "Xác nhận đổi email EventLead"
 content_path = "./supabase/templates/change-email-address.html"
 
 [auth.email.template.magic_link]
-subject = "Sign in to Makerkit"
+subject = "Đăng nhập EventLead"
 content_path = "./supabase/templates/magic-link.html"
 
 [analytics]

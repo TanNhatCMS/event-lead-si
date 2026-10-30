@@ -94,7 +94,7 @@ export async function PUT(request: Request) {
   const { error } = await admin
     .from('agent_config')
     .upsert(
-      { user_id: auth.user.id, credentials: credentials as Json, updated_at: new Date().toISOString() },
+      { user_id: auth.user.id, credentials: credentials as NonNullable<Json>, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' },
     );
 
@@ -125,7 +125,7 @@ export async function DELETE() {
   const { error } = await admin
     .from('agent_config')
     .upsert(
-      { user_id: auth.user.id, credentials: credentials as Json, updated_at: new Date().toISOString() },
+      { user_id: auth.user.id, credentials: credentials as NonNullable<Json>, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' },
     );
 

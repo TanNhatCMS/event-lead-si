@@ -25,6 +25,8 @@
     "syncpack:fix": "pnpm dlx syncpack fix-mismatches",
     "supabase:web:start": "pnpm --filter web supabase:start",
     "supabase:web:stop": "pnpm --filter web supabase:stop",
+    "docker:web:dev": "docker compose -f docker-compose.dev.yml up --build web-dev",
+    "docker:web:dev:down": "docker compose -f docker-compose.dev.yml down",
     "supabase:web:typegen": "pnpm --filter web supabase:typegen",
     "supabase:web:reset": "pnpm --filter web supabase:reset",
     "lint": "oxlint",

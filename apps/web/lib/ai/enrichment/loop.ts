@@ -20,10 +20,17 @@ import {
   loadAgentTooling,
 } from "../agent-tooling";
 import {
-  createEnrichmentModel,
   getEnrichmentConfigIssue,
   resolveEnrichmentConfig,
-} from "./model-config";
+  type ResolvedEnrichmentConfig,
+} from "~/lib/ai/model-config";
+import {
+  buildModelChain,
+  ModelFailoverError,
+  runWithModelFailover,
+  type ModelChainLink,
+} from "../model-failover";
+import { recordUsage } from "../usage";
 import { getPrompt } from "../prompts/manager";
 import { getPromptDefault } from "../prompts/defaults";
 
@@ -35,8 +42,12 @@ import { getPromptDefault } from "../prompts/defaults";
  *   hoặc hết số step.
  * - Model + provider lấy từ cấu hình `ai_model_configs` (capability
  *   `lead_enrichment`) của người dùng, fallback env (`ENRICHMENT_PROVIDER`,
- *   `ENRICHMENT_MODEL`). Provider mặc định là OpenAI gọi thẳng (không qua
- *   AI Gateway — quyết định 2026-10-24); key luôn từ biến môi trường server.
+ *   `ENRICHMENT_MODEL`).
+ * - FAILOVER: gọi model qua chuỗi dự phòng (`config.fallbacks` của capability)
+ *   và xoay TỪNG API key của provider (DB đa key + legacy + env) bằng
+ *   `runWithModelFailover` — lỗi retryable (401/402/429/5xx/mạng/quota/
+ *   model_not_found) thì thử key kế rồi model kế; lỗi 400/422 (input sai)
+ *   dừng ngay.
  * - NGUYÊN TẮC: agent CHỈ trả findings kèm confidence + nguồn, KHÔNG tự ghi
  *   đè dữ liệu contact (hiến chương "AI gợi ý, người quyết định").
  */
@@ -160,6 +171,28 @@ function summarizeSteps(result: { steps: SdkStep[] }): EnrichmentStep[] {
 }
 
 /**
+ * Kiểm tra cấu hình sau khi đã dựng chuỗi failover — trả về thông điệp lỗi
+ * cần chặn, `null` khi OK.
+ *
+ * LƯU Ý: `getEnrichmentConfigIssue` chỉ nhìn key đơn DB (legacy) + env nên có
+ * thể báo thiếu key NHẦM với user đang dùng đa key (mảng `<provider>_api_keys`
+ * — key đơn đã bị xóa khi lưu danh sách mới). Với provider cần key, chỉ chặn
+ * khi chuỗi thật sự không còn key nào; với openai-compatible, issue chỉ là
+ * thiếu Base URL (cấu trúc) nên luôn chặn.
+ */
+function resolveConfigBlockIssue(
+  config: ResolvedEnrichmentConfig,
+  chain: ModelChainLink[],
+): string | null {
+  const issue = getEnrichmentConfigIssue(config);
+  if (!issue) return null;
+  const primary = chain[0];
+  if (!primary) return issue;
+  if (config.provider === "openai-compatible") return issue;
+  return primary.keys.length === 0 ? issue : null;
+}
+
+/**
  * Chạy vòng lặp enrichment. Ném `EnrichmentNotConfiguredError` khi model/key
  * chưa được cấu hình — caller chuyển thành thông báo thân thiện cho UI.
  */
@@ -173,12 +206,17 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
           : "Hãy đặt ENRICHMENT_MODEL trong biến môi trường hoặc cấu hình capability lead_enrichment."),
     );
   }
-  const issue = getEnrichmentConfigIssue(config);
-  if (issue) {
-    throw new EnrichmentNotConfiguredError(issue);
+
+  const chain = await buildModelChain({
+    userId: input.userId,
+    supabase: input.supabase,
+    config,
+  });
+  const blockIssue = resolveConfigBlockIssue(config, chain);
+  if (blockIssue) {
+    throw new EnrichmentNotConfiguredError(blockIssue);
   }
 
-  const model = createEnrichmentModel({ ...config, model: config.model });
   const baseTools = buildEnrichmentTools();
   const basePrompt = input.supabase
     ? await getPrompt('lead_enrichment', input.userId ?? '', input.supabase)
@@ -202,29 +240,54 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
 
   const spanUserId = input.userId ?? 'unknown';
   let generated;
+  let usedModel = "";
   try {
-    generated = await withUserSpan("enrichment.run", spanUserId, () =>
-      generateText({
-        model,
-        system: systemPrompt,
-        prompt: buildUserPrompt(input.recognized),
-        tools,
-        stopWhen: stepCountIs(MAX_STEPS),
-        maxOutputTokens: 2000,
-        output: Output.object({ schema: enrichmentOutputSchema }),
-        // Log từng step ngay khi xong (thay vì chờ cả loop) — pattern từ
-        // ZCode TurnMachine (phase executing_tools → aggregating_results):
-        // giúp debug khi loop chạy lâu hoặc kẹt ở tool nào.
-        onStepFinish: (step) => {
-          const names = (step.toolCalls ?? []).map((c) => c.toolName).join(", ");
-          console.log(
-            `[enrichment] step xong: tools=[${names || "suy luận"}] finishReason=${step.finishReason}`
-          );
-        },
-        experimental_telemetry: { isEnabled: true },
-      }),
-    );
+    // Đo latency toàn lượt gọi (bao gồm các lượt failover bên trong).
+    const startedAt = Date.now();
+    const outcome = await runWithModelFailover({
+      chain,
+      userId: input.userId,
+      supabase: input.supabase,
+      execute: (model) =>
+        withUserSpan("enrichment.run", spanUserId, () =>
+          generateText({
+            model,
+            system: systemPrompt,
+            prompt: buildUserPrompt(input.recognized),
+            tools,
+            stopWhen: stepCountIs(MAX_STEPS),
+            maxOutputTokens: 2000,
+            output: Output.object({ schema: enrichmentOutputSchema }),
+            // Log từng step ngay khi xong (thay vì chờ cả loop) — pattern từ
+            // ZCode TurnMachine (phase executing_tools → aggregating_results):
+            // giúp debug khi loop chạy lâu hoặc kẹt ở tool nào.
+            onStepFinish: (step) => {
+              const names = (step.toolCalls ?? []).map((c) => c.toolName).join(", ");
+              console.log(
+                `[enrichment] step xong: tools=[${names || "suy luận"}] finishReason=${step.finishReason}`
+              );
+            },
+            experimental_telemetry: { isEnabled: true },
+          }),
+        ),
+    });
+    generated = outcome.result;
+    usedModel = outcome.used.provider + ":" + outcome.used.model;
+    // Thống kê token/chi phí — best-effort (recordUsage tự nuốt lỗi).
+    await recordUsage({
+      userId: input.userId,
+      source: "enrichment",
+      provider: outcome.used.provider,
+      model: outcome.used.model,
+      usage: generated.usage,
+      latencyMs: Date.now() - startedAt,
+      supabase: input.supabase,
+    });
   } catch (err) {
+    if (err instanceof ModelFailoverError) {
+      // Message tĩnh + chi tiết từng lần thử ở field `attempts`.
+      throw err;
+    }
     throw new Error(
       "Chạy agent làm giàu dữ liệu thất bại: " +
         (err instanceof Error ? err.message : "lỗi không xác định"),
@@ -235,7 +298,7 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
   return enrichmentResultSchema.parse({
     findings,
     steps: summarizeSteps(generated),
-    modelUsed: `${config.source}:${config.model}`,
+    modelUsed: usedModel,
   });
 }
 
@@ -253,7 +316,8 @@ export async function checkEnrichmentConfigured(
         "Liên hệ quản trị viên để bật capability lead_enrichment hoặc đặt ENRICHMENT_MODEL.",
     };
   }
-  const issue = getEnrichmentConfigIssue(config);
+  const chain = await buildModelChain({ userId, supabase, config });
+  const issue = resolveConfigBlockIssue(config, chain);
   if (issue) {
     return { configured: false, message: issue };
   }

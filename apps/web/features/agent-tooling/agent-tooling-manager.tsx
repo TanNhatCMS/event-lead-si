@@ -79,6 +79,178 @@ function Notice(props: { kind: 'ok' | 'error'; text: string | null }) {
 }
 
 // ---------------------------------------------------------------------------
+// EventLead MCP Server — key tự host (chỉ đọc danh bạ qua /api/mcp/v1)
+// ---------------------------------------------------------------------------
+
+interface McpKeyStatus {
+  configured: boolean;
+  masked: string | null;
+}
+
+/**
+ * Card bật EventLead MCP Server: sinh/thu hồi API key dùng để gọi
+ * POST /api/mcp/v1 (tools: lookup_contact, list_recent_contacts,
+ * count_contacts — CHỈ ĐỌC). Key gốc chỉ hiển thị đúng một lần sau khi tạo.
+ */
+function EventLeadMcpCard() {
+  const [status, setStatus] = useState<McpKeyStatus | null>(null);
+  const [busy, setBusy] = useState<'generate' | 'revoke' | null>(null);
+  const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [endpoint, setEndpoint] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/mcp/v1/key');
+      const json = await res.json().catch(() => null);
+      if (res.ok) {
+        setStatus({ configured: Boolean(json?.configured), masked: json?.masked ?? null });
+      }
+    } catch {
+      // bỏ qua — hiển thị như chưa cấu hình.
+    }
+  }, []);
+
+  useEffect(() => {
+    setEndpoint(window.location.origin + '/api/mcp/v1');
+    void load();
+  }, [load]);
+
+  async function generate() {
+    setBusy('generate');
+    setNotice(null);
+    setGeneratedKey(null);
+    try {
+      const res = await fetch('/api/mcp/v1/key', { method: 'PUT' });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setNotice({ kind: 'error', text: json?.message ?? 'Không tạo được key.' });
+        return;
+      }
+      setGeneratedKey(json?.key ?? null);
+      setNotice({
+        kind: 'ok',
+        text: 'Đã tạo key mới. Key gốc chỉ hiển thị MỘT lần duy nhất bên dưới — copy ngay.',
+      });
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function revoke() {
+    if (!window.confirm('Thu hồi API key của EventLead MCP Server? Client đang dùng key này sẽ bị từ chối (401).')) {
+      return;
+    }
+    setBusy('revoke');
+    setNotice(null);
+    try {
+      const res = await fetch('/api/mcp/v1/key', { method: 'DELETE' });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        setNotice({ kind: 'error', text: json?.message ?? 'Không thu hồi được key.' });
+        return;
+      }
+      setGeneratedKey(null);
+      setNotice({ kind: 'ok', text: 'Đã thu hồi key.' });
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function copyKey() {
+    if (!generatedKey) return;
+    try {
+      await navigator.clipboard.writeText(generatedKey);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard bị chặn — người dùng vẫn copy tay được.
+    }
+  }
+
+  return (
+    <div className="rounded-xl border p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <Plug className="size-4" />
+            EventLead MCP Server (tự host)
+            {status?.configured ? (
+              <Badge variant="secondary">Đang bật — {status.masked}</Badge>
+            ) : (
+              <Badge variant="outline">Chưa có key</Badge>
+            )}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Cho phép client MCP bên ngoài (Claude, Cursor…) đọc danh bạ của bạn
+            qua 3 tool chỉ đọc: <code className="font-mono">lookup_contact</code>,{' '}
+            <code className="font-mono">list_recent_contacts</code>,{' '}
+            <code className="font-mono">count_contacts</code>. Không có tool ghi
+            dữ liệu.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            disabled={busy !== null}
+            onClick={() => void generate()}
+          >
+            {busy === 'generate' ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Plus className="size-4" />
+            )}
+            {status?.configured ? 'Tạo key mới' : 'Bật MCP Server (tạo key)'}
+          </Button>
+          {status?.configured && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={() => void revoke()}
+            >
+              {busy === 'revoke' ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              Thu hồi
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {status?.configured && (
+        <p className="mt-3 rounded-lg bg-muted px-3 py-2 font-mono text-xs break-all">
+          Endpoint: {endpoint}
+          <br />
+          Header: Authorization: Bearer &lt;key&gt;
+        </p>
+      )}
+
+      {generatedKey && (
+        <div className="mt-3 space-y-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+          <p className="text-xs font-medium text-amber-700">
+            Key của bạn (chỉ hiển thị lần này — copy ngay):
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="min-w-0 flex-1 font-mono text-xs break-all">{generatedKey}</code>
+            <Button size="sm" variant="outline" onClick={() => void copyKey()}>
+              {copied ? 'Đã copy' : 'Copy'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {notice && <Notice kind={notice.kind} text={notice.text} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Tab 1 — MCP Tools
 // ---------------------------------------------------------------------------
 
@@ -194,6 +366,8 @@ function McpServersTab() {
   return (
     <div className="space-y-4">
       <Notice kind={notice?.kind ?? 'ok'} text={notice?.text ?? null} />
+
+      <EventLeadMcpCard />
 
       <div className="rounded-xl border p-4">
         <p className="mb-3 flex items-center gap-2 text-sm font-medium">

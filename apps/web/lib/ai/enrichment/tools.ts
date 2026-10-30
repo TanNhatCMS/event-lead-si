@@ -219,7 +219,13 @@ function extractResults(data: unknown): WebSearchResultItem[] {
     .filter((x): x is WebSearchResultItem => x !== null);
 }
 
+/**
+ * Fetch có timeout — MỌI lời gọi qua đây đều đi qua egress guard (chặn
+ * localhost/private IP/reserved sau khi resolve DNS) — chốt chặn tập trung
+ * một chỗ thay vì phụ thuộc từng call site tự guard.
+ */
 async function fetchWithTimeout(url: string, init: RequestInit, ms = 12000) {
+  await assertEgressAllowed(url);
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {

@@ -1,0 +1,4 @@
+WARN: config section [inbucket] is deprecated and will be removed in v3, use [local_smtp] instead.
+Connecting to localhost 54322
+failed to connect to postgres: failed to connect to `host=localhost user=postgres database=postgres`: Connection terminated unexpectedly
+Try rerunning the command with --debug to troubleshoot the error.

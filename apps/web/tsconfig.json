@@ -21,6 +21,7 @@
     "*.ts",
     "*.tsx",
     "./config/**/*.ts",
+    "agent/**/*.ts",
     "components/**/*",
     "i18n/**/*.ts",
     "i18n/**/*.tsx",

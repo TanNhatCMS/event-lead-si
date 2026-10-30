@@ -8,6 +8,7 @@ import { getSupabaseServerClient } from '@kit/supabase/server-client';
 import { logAudit } from '~/lib/audit/log-audit';
 import { recognizedCardSchema } from '~/lib/ai/card-recognition';
 import { enqueueBusinessIndexSafe } from '~/lib/ai/rag/contact-index';
+import { dispatchWebhook } from '~/lib/webhooks/dispatch';
 
 const fieldKeys = [
   'fullName',
@@ -327,12 +328,49 @@ export async function POST(request: Request) {
     );
   }
 
+  // 5) Ghi chú cuộc gặp (best-effort): eventName + notes người dùng nhập trên
+  //    màn hình xác nhận trước đây bị vứt — giờ lưu vào meeting_notes. Gộp
+  //    thành 1 dòng note_type 'meeting_note' là đủ cho MVP: đây là ghi chú
+  //    bối cảnh cuộc gặp tại sự kiện, chưa cần tách nhu cầu/cơ hội chi tiết.
+  //    Lỗi insert KHÔNG làm fail confirm — hồ sơ liên hệ đã tạo thành công.
+  const eventName = input.eventName?.trim();
+  const meetingNotes = input.notes?.trim();
+  if (eventName || meetingNotes) {
+    const noteParts: string[] = [];
+    if (eventName) {
+      noteParts.push(`Sự kiện: ${eventName}`);
+    }
+    if (meetingNotes) {
+      noteParts.push(meetingNotes);
+    }
+    const { error: noteError } = await supabase.from('meeting_notes').insert({
+      user_id: user.id,
+      contact_id: contact.id,
+      author_user_id: user.id,
+      body: noteParts.join('\n'),
+      note_type: 'meeting_note',
+    });
+    if (noteError) {
+      console.warn(
+        '[card-imports] chưa lưu được ghi chú cuộc gặp:',
+        noteError.message,
+      );
+    }
+  }
+
   await logAudit(supabase, user.id, {
     action: 'card_import.confirm',
     entityType: 'contact',
     entityId: contact.id,
     summary: `Xác nhận danh thiếp, tạo liên hệ: ${input.fields.fullName.trim()}`,
     metadata: { import_id: input.importId },
+  });
+
+  // Thông báo ra outgoing webhooks (fire-and-forget, best-effort).
+  void dispatchWebhook(user.id, 'card.confirmed', {
+    contact_id: contact.id,
+    company_id: companyId,
+    import_id: input.importId,
   });
 
   return NextResponse.json(

@@ -51,6 +51,10 @@ export interface ModelCatalog {
  */
 const STATIC_DIRECT_MODELS: Record<string, string[]> = {
   openai: [
+    'gpt-6.1-sol',
+    'gpt-6-sol',
+    'gpt-6-luna',
+    'gpt-6-astra',
     'gpt-5.4',
     'gpt-5.2',
     'gpt-5.2-pro',
@@ -144,7 +148,7 @@ const GATEWAY_MODELS = [
 ];
 
 const VISION_MODEL_PATTERN =
-  /gpt-4o|gpt-5|claude|gemini|grok-4|glm-4\.6|glm-5|vision|-vl\b/i;
+  /gpt-4o|gpt-4\.1|gpt-5|gpt-6|o3|o4-mini|claude|gemini|grok-4|glm-4\.6|glm-5|vision|-vl\b/i;
 
 const EMBEDDING_MODEL_PATTERN = /embed/i;
 

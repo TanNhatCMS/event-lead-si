@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import {
+  BarChart3,
   Bot,
   Cpu,
   FileText,
@@ -41,6 +42,13 @@ export default async function AdminPage() {
   const openaiConfigured = Boolean(getOpenAiApiKey());
 
   const sections = [
+    {
+      href: pathsConfig.app.usageStats,
+      Icon: BarChart3,
+      title: 'Thống kê Token',
+      description:
+        'Token theo model (đầu vào/đầu ra/cache), chi phí quy đổi USD và bảng giá.',
+    },
     {
       href: pathsConfig.app.users,
       Icon: Users,

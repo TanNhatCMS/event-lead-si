@@ -77,7 +77,8 @@
     "relationships": "Relationships",
     "settings": "Settings",
     "auditLog": "Audit log",
-    "assistant": "Assistant"
+    "assistant": "Assistant",
+    "usageStats": "Usage"
   },
   "roles": {
     "owner": {

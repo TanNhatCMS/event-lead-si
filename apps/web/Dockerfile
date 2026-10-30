@@ -47,6 +47,27 @@ RUN touch apps/web/.env.local && pnpm install --frozen-lockfile
 RUN pnpm --filter web build
 
 # ---------------------------------------------------------------------------
+# Dev: chạy `next dev` (Turbopack) với hot reload — target cho
+# docker-compose.dev.yml. Source được bind mount từ máy host lúc runtime;
+# node_modules/.next nằm trong named volumes khởi tạo từ nội dung image này
+# (không mount từ host — junction/symlink pnpm của Windows và binary native
+# khác platform). Đổi deps (lockfile) là phải `up --build` lại image dev.
+# Lưu ý: stage này phải đứng TRƯỚC runner — runner là stage cuối (default
+# target của `docker compose up --build web`).
+# ---------------------------------------------------------------------------
+FROM base AS dev
+
+COPY . .
+
+# Script `dev` của web dùng `with-env` (dotenv -e ./.env.local); file host
+# không có sẵn trong image — compose dev touch lại lúc runtime sau khi mount.
+RUN touch apps/web/.env.local && pnpm install --frozen-lockfile
+
+EXPOSE 3000
+
+CMD ["pnpm", "--filter", "web", "dev"]
+
+# ---------------------------------------------------------------------------
 # Runner: chỉ chứa standalone server (node_modules đã được trace tối thiểu)
 # ---------------------------------------------------------------------------
 FROM node:24-bookworm-slim AS runner

@@ -82,10 +82,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const criteria = Array.isArray(req.criteria) ? req.criteria : [];
+  const criteria = (Array.isArray(req.criteria) ? req.criteria : []) as {
+    label?: string;
+    detail?: string;
+  }[];
   const candText = (candidates ?? [])
     .map((c, i) => {
-      const ev = Array.isArray(c.evidence) ? c.evidence : [];
+      const ev = (Array.isArray(c.evidence) ? c.evidence : []) as {
+        label?: string;
+        url?: string;
+        note?: string;
+      }[];
       return `${i + 1}. ${c.name}${c.shortlisted ? ' (danh sách ngắn)' : ''}\n` +
         (c.fit_summary ? `   Đánh giá: ${c.fit_summary}\n` : '') +
         (c.notes ? `   Ghi chú: ${c.notes}\n` : '') +

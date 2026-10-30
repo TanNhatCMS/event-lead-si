@@ -24,6 +24,7 @@ const PathsSchema = z.object({
     relationships: z.string().min(1),
     auditLog: z.string().min(1),
     assistant: z.string().min(1),
+    usageStats: z.string().min(1),
   }),
 });
 
@@ -51,6 +52,7 @@ const pathsConfig = PathsSchema.parse({
     relationships: '/dashboard/quan-he',
     auditLog: '/admin/nhat-ky',
     assistant: '/dashboard/tro-ly',
+    usageStats: '/admin/thong-ke',
   },
 } satisfies z.infer<typeof PathsSchema>);
 

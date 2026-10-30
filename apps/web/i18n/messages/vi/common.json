@@ -81,7 +81,8 @@
     "relationships": "Trí tuệ quan hệ",
     "settings": "Cài đặt",
     "auditLog": "Nhật ký",
-    "assistant": "Trợ lý"
+    "assistant": "Trợ lý",
+    "usageStats": "Thống kê"
   },
   "settingsTabDescription": "Quản lý cài đặt và tùy chọn.",
   "settingsTabLabel": "Cài đặt",

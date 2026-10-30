@@ -1,3 +1,5 @@
+import type { Metadata, Viewport } from 'next';
+
 import { routing } from '@kit/i18n/routing';
 import { Toaster } from '@kit/ui/sonner';
 import { cn } from '@kit/ui/utils';
@@ -63,4 +65,22 @@ function getClassName() {
   return cn('bg-background min-h-screen antialiased', ...font);
 }
 
-export const generateMetadata = generateRootMetadata;
+export const generateMetadata = async (): Promise<Metadata> => {
+  const base = await generateRootMetadata();
+  return {
+    ...base,
+    // PWA: cài EventLead lên màn hình chính (kèm camera capture ở quét danh thiếp).
+    manifest: '/manifest.webmanifest',
+  };
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  // PWA trên điện thoại: vẽ trọn màn hình tai thỏ (notch).
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+  ],
+};

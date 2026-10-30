@@ -98,7 +98,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const criteria = Array.isArray(req.criteria) ? req.criteria : [];
+  const criteria = (Array.isArray(req.criteria) ? req.criteria : []) as {
+    label?: string;
+    detail?: string;
+  }[];
   const dirText = [
     'DANH BẠ LIÊN HỆ:',
     ...((contacts ?? []).map((c) => {

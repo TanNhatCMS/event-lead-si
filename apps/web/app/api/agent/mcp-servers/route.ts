@@ -5,7 +5,6 @@ import { z } from 'zod';
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 import type { Database } from '@kit/supabase/database';
-import type { Json } from '@kit/supabase/database';
 
 import { probeMcpServer } from '~/lib/ai/agent-tooling';
 
@@ -81,7 +80,7 @@ export async function POST(request: Request) {
       user_id: auth.user.id,
       name: parsed.data.name,
       url: parsed.data.url,
-      headers: parsed.data.headers as Json,
+      headers: parsed.data.headers,
       enabled: parsed.data.enabled,
     })
     .select('id, name, url, enabled, created_at, updated_at')
@@ -123,7 +122,7 @@ export async function PATCH(request: Request) {
   if (updates.url !== undefined) patch.url = updates.url;
   if (updates.enabled !== undefined) patch.enabled = updates.enabled;
   if (updates.headers !== undefined && Object.keys(updates.headers).length > 0) {
-    patch.headers = updates.headers as Json;
+    patch.headers = updates.headers;
   }
 
   const { error } = await auth.supabase
