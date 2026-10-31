@@ -39,14 +39,14 @@ export type Database = {
                   ]
                 },"agent_config": {
                   Row: {
-                    "budgets": NonNullable<Json>,"credentials": NonNullable<Json>,"hooks": NonNullable<Json>,"plugins": NonNullable<Json>,"updated_at": string,"user_id": string
+                    "budgets": NonNullable<Json>,"credentials": NonNullable<Json>,"hooks": NonNullable<Json>,"plugins": NonNullable<Json>,"settings": NonNullable<Json>,"updated_at": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "budgets"?: NonNullable<Json>,"credentials"?: NonNullable<Json>,"hooks"?: NonNullable<Json>,"plugins"?: NonNullable<Json>,"updated_at"?: string,"user_id": string
+                    "budgets"?: NonNullable<Json>,"credentials"?: NonNullable<Json>,"hooks"?: NonNullable<Json>,"plugins"?: NonNullable<Json>,"settings"?: NonNullable<Json>,"updated_at"?: string,"user_id": string
                   }
                   Update: {
-                    "budgets"?: NonNullable<Json>,"credentials"?: NonNullable<Json>,"hooks"?: NonNullable<Json>,"plugins"?: NonNullable<Json>,"updated_at"?: string,"user_id"?: string
+                    "budgets"?: NonNullable<Json>,"credentials"?: NonNullable<Json>,"hooks"?: NonNullable<Json>,"plugins"?: NonNullable<Json>,"settings"?: NonNullable<Json>,"updated_at"?: string,"user_id"?: string
                   }
                   Relationships: [
                     

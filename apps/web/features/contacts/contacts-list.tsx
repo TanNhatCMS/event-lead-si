@@ -9,11 +9,15 @@ import {
   Download,
   FileUp,
   Mail,
+  Milestone,
   MoreVertical,
   Phone,
+  Plus,
   Search,
+  Settings2,
   Share2,
   Sparkles,
+  Tag,
   Users,
   X,
 } from 'lucide-react';
@@ -56,6 +60,7 @@ type ContactRow = {
   job_title: string | null;
   email: string | null;
   phone: string | null;
+  labels?: string[] | null;
   relationship_stage: string | null;
   archived_at: string | null;
   updated_at: string;
@@ -80,6 +85,33 @@ const STAGE_LABELS: Record<string, string> = {
   customer: 'Khách hàng',
   lost: 'Không tiếp tục',
 };
+
+/** Một giai đoạn quan hệ trong cấu hình agent (GET /api/agent/config). */
+type AgentStage = { id: string; label: string };
+
+/** Nhánh `settings` của agent_config — hợp đồng API frontend/backend. */
+type AgentSettings = {
+  labels: string[];
+  stages: AgentStage[];
+  retention_days: number | null;
+};
+
+// Mặc định khi backend chưa lưu cấu hình nào (khớp hợp đồng API).
+const DEFAULT_LABELS: string[] = [
+  'VIP',
+  'Khách hàng tiềm năng',
+  'Đối tác',
+  'Cần theo dõi',
+];
+
+const DEFAULT_STAGES: AgentStage[] = [
+  { id: 'new', label: 'Mới' },
+  { id: 'contacted', label: 'Đã liên hệ' },
+  { id: 'meeting', label: 'Đã gặp' },
+  { id: 'negotiating', label: 'Đang đàm phán' },
+  { id: 'customer', label: 'Khách hàng' },
+  { id: 'lost', label: 'Không tiếp tục' },
+];
 
 type ExportFormat = 'csv' | 'excel' | 'vcard';
 
@@ -130,6 +162,20 @@ export function ContactsList() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [eventId, setEventId] = useState<string>('');
 
+  // Lọc theo nhãn / giai đoạn — params `label` và `stage` của GET /api/contacts.
+  const [labelFilter, setLabelFilter] = useState<string>('');
+  const [stageFilter, setStageFilter] = useState<string>('');
+
+  // Cấu hình nhãn/giai đoạn từ agent_config (GET /api/agent/config).
+  // Backend đang làm song song — chưa có `settings` thì dùng mặc định.
+  const [agentSettings, setAgentSettings] = useState<AgentSettings | null>(null);
+
+  // Quản lý nhãn (PATCH /api/agent/config { settings }).
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const [draftLabels, setDraftLabels] = useState<string[]>([]);
+  const [newLabel, setNewLabel] = useState('');
+  const [savingLabels, setSavingLabels] = useState(false);
+
   // Import CSV (POST /api/contacts/import).
   const [importOpen, setImportOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
@@ -161,6 +207,10 @@ export function ContactsList() {
       });
       // Backend có thể bỏ qua param này — client tự lọc thêm ở dưới nếu có event_id.
       if (eventId) params.set('event_id', eventId);
+      // Lọc nhãn/giai đoạn (FR-013): `labels` comma-separated (chứa BẤT KỲ),
+      // `stage` khớp relationship_stage. Backend chưa hỗ trợ thì bỏ qua param.
+      if (labelFilter) params.set('labels', labelFilter);
+      if (stageFilter) params.set('stage', stageFilter);
       const res = await fetch(`/api/contacts?${params}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? 'Tải danh sách thất bại.');
@@ -172,11 +222,32 @@ export function ContactsList() {
     } finally {
       setLoading(false);
     }
-  }, [debounced, archived, eventId]);
+  }, [debounced, archived, eventId, labelFilter, stageFilter]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Tải cấu hình nhãn/giai đoạn cho bộ lọc — thất bại thì dùng mặc định (graceful).
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/agent/config');
+        if (!res.ok) return;
+        const json = await res.json();
+        const s = json?.settings;
+        if (s && Array.isArray(s.labels) && Array.isArray(s.stages)) {
+          setAgentSettings({
+            labels: s.labels,
+            stages: s.stages,
+            retention_days: typeof s.retention_days === 'number' ? s.retention_days : null,
+          });
+        }
+      } catch {
+        // im lặng: bộ lọc nhãn/giai đoạn vẫn dùng danh sách mặc định
+      }
+    })();
+  }, []);
 
   // Tải danh sách sự kiện để lọc — thất bại thì ẩn bộ lọc (graceful).
   useEffect(() => {
@@ -198,6 +269,72 @@ export function ContactsList() {
     if (!contacts.some((c) => c.event_id !== undefined)) return contacts;
     return contacts.filter((c) => matchEvent(c.event_id, eventId));
   }, [contacts, eventId]);
+
+  // Options bộ lọc: cấu hình agent nếu có, ngược lại dùng mặc định.
+  const labelOptions = agentSettings?.labels ?? DEFAULT_LABELS;
+  const stageOptions = agentSettings?.stages ?? DEFAULT_STAGES;
+  const hasActiveFilters = Boolean(eventId || labelFilter || stageFilter);
+
+  function openLabelsDialog() {
+    setDraftLabels([...labelOptions]);
+    setNewLabel('');
+    setLabelsOpen(true);
+  }
+
+  function addDraftLabel() {
+    const value = newLabel.trim();
+    if (!value) return;
+    // Giới hạn khớp backend (lib/contacts/settings.ts): 40 ký tự, tối đa 20 nhãn.
+    if (value.length > 40) {
+      toast.error('Nhãn tối đa 40 ký tự.');
+      return;
+    }
+    if (draftLabels.length >= 20) {
+      toast.error('Tối đa 20 nhãn.');
+      return;
+    }
+    if (draftLabels.some((l) => l.toLowerCase() === value.toLowerCase())) {
+      toast.error('Nhãn này đã tồn tại.');
+      return;
+    }
+    setDraftLabels((prev) => [...prev, value]);
+    setNewLabel('');
+  }
+
+  function removeDraftLabel(label: string) {
+    setDraftLabels((prev) => prev.filter((l) => l !== label));
+  }
+
+  /** Lưu danh sách nhãn — PATCH /api/agent/config { settings } (merge top-level). */
+  async function handleSaveLabels() {
+    setSavingLabels(true);
+    try {
+      const mergedSettings: AgentSettings = {
+        ...(agentSettings ?? {
+          labels: DEFAULT_LABELS,
+          stages: DEFAULT_STAGES,
+          retention_days: null,
+        }),
+        labels: draftLabels,
+      };
+      const res = await fetch('/api/agent/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: mergedSettings }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.message ?? 'Lưu nhãn thất bại.');
+      }
+      setAgentSettings(mergedSettings);
+      setLabelsOpen(false);
+      toast.success('Đã lưu danh sách nhãn.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Lưu nhãn thất bại.');
+    } finally {
+      setSavingLabels(false);
+    }
+  }
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -387,6 +524,46 @@ export function ContactsList() {
               </SelectContent>
             </Select>
           )}
+          <Select
+            value={labelFilter || 'all'}
+            onValueChange={(value) => setLabelFilter(!value || value === 'all' ? '' : value)}
+          >
+            <SelectTrigger className="h-9 w-full sm:w-44" aria-label="Lọc theo nhãn">
+              <Tag className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <SelectValue placeholder="Tất cả nhãn">
+                {labelFilter || 'Tất cả nhãn'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả nhãn</SelectItem>
+              {labelOptions.map((label) => (
+                <SelectItem key={label} value={label}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={stageFilter || 'all'}
+            onValueChange={(value) => setStageFilter(!value || value === 'all' ? '' : value)}
+          >
+            <SelectTrigger className="h-9 w-full sm:w-44" aria-label="Lọc theo giai đoạn">
+              <Milestone className="mr-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <SelectValue placeholder="Tất cả giai đoạn">
+                {stageFilter
+                  ? (stageOptions.find((s) => s.id === stageFilter)?.label ?? stageFilter)
+                  : 'Tất cả giai đoạn'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả giai đoạn</SelectItem>
+              {stageOptions.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant={archived ? 'outline' : 'default'}
             size="sm"
@@ -405,6 +582,22 @@ export function ContactsList() {
           </Button>
         </div>
       </div>
+
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setEventId('');
+              setLabelFilter('');
+              setStageFilter('');
+            }}
+          >
+            <X className="mr-1 h-3.5 w-3.5" /> Xóa lọc
+          </Button>
+        </div>
+      )}
 
       {exportError && (
         <p className="text-sm text-destructive">{exportError}</p>
@@ -425,8 +618,8 @@ export function ContactsList() {
           <CardContent className="py-14 text-center">
             <p className="text-sm font-medium">Chưa có liên hệ nào</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {debounced
-                ? 'Thử từ khóa khác, hoặc quét danh thiếp mới.'
+              {debounced || hasActiveFilters
+                ? 'Thử thay đổi từ khóa hoặc bộ lọc, hoặc quét danh thiếp mới.'
                 : 'Quét danh thiếp để thêm liên hệ đầu tiên của bạn.'}
             </p>
             <Link
@@ -463,6 +656,10 @@ export function ContactsList() {
               >
                 <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                 {enriching ? 'Đang bắt đầu...' : `Làm giàu dữ liệu (${selectedCount})`}
+              </Button>
+              <Button variant="outline" size="sm" onClick={openLabelsDialog}>
+                <Settings2 className="mr-1.5 h-3.5 w-3.5" />
+                Quản lý nhãn
               </Button>
               <Button
                 variant="outline"
@@ -568,6 +765,19 @@ export function ContactsList() {
                             </span>
                           )}
                         </div>
+                        {c.labels && c.labels.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {c.labels.slice(0, 3).map((label) => (
+                              <Badge
+                                key={label}
+                                variant="outline"
+                                className="px-1.5 py-0 text-[10px]"
+                              >
+                                {label}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1.5 pr-8">
                         {c.relationship_stage && (
@@ -724,6 +934,88 @@ export function ContactsList() {
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog quản lý nhãn (PATCH /api/agent/config { settings }) */}
+      <Dialog
+        open={labelsOpen}
+        onOpenChange={(open) => {
+          if (!open) setLabelsOpen(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Quản lý nhãn</DialogTitle>
+            <DialogDescription>
+              Thêm hoặc xóa nhãn dùng để phân loại và lọc liên hệ trong danh bạ.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Nhãn hiện có</Label>
+              {draftLabels.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Chưa có nhãn nào.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {draftLabels.map((label) => (
+                    <Badge key={label} variant="secondary" className="gap-1 pr-1">
+                      {label}
+                      <button
+                        type="button"
+                        onClick={() => removeDraftLabel(label)}
+                        aria-label={`Xóa nhãn ${label}`}
+                        className="rounded-full p-0.5 transition-colors hover:bg-accent"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-label">Thêm nhãn mới</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="new-label"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addDraftLabel();
+                    }
+                  }}
+                  placeholder="Ví dụ: VIP"
+                />
+                <Button variant="outline" disabled={!newLabel.trim()} onClick={addDraftLabel}>
+                  <Plus className="mr-1 h-4 w-4" /> Thêm
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Giai đoạn quan hệ</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {stageOptions.map((s) => (
+                  <Badge key={s.id} variant="outline">
+                    {s.label}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Giai đoạn hiện chỉ xem được — chỉnh sửa sắp có.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLabelsOpen(false)}>
+              Hủy
+            </Button>
+            <Button disabled={savingLabels} onClick={() => void handleSaveLabels()}>
+              {savingLabels ? 'Đang lưu...' : 'Lưu'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

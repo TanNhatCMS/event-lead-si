@@ -8,6 +8,7 @@ export type AuditAction =
   | 'contact.create'
   | 'contact.update'
   | 'contact.delete'
+  | 'contact.retention_cleanup'
   | 'company.create'
   | 'company.update'
   | 'company.delete'

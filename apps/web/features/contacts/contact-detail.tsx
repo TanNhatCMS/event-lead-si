@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@kit/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@kit/ui/alert';
 import { Badge } from '@kit/ui/badge';
 import { Button, buttonVariants } from '@kit/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@kit/ui/card';
@@ -84,6 +85,15 @@ type Note = {
   created_at: string;
 };
 
+/**
+ * Khoảng trống bằng chứng từ GET /api/contacts/[id]/timeline (field `gaps`).
+ * Backend đang làm song song — response chưa có `gaps` thì section tự ẩn.
+ */
+type ContactGaps = {
+  missing_fields: string[];
+  unverified_fields: Array<{ field_name: string; verification_state: string }>;
+};
+
 const STAGES = [
   { id: 'new', label: 'Mới' },
   { id: 'contacted', label: 'Đã liên hệ' },
@@ -119,6 +129,9 @@ const FIELD_LABELS: Record<string, string> = {
   preferred_language: 'Ngôn ngữ',
   relationship_stage: 'Giai đoạn',
   company_id: 'Công ty',
+  // Các trường gap tracking lấy từ company liên kết (lib/contacts/contact-gaps.ts).
+  website: 'Website',
+  company_name: 'Công ty',
 };
 
 // Enum verification_state của bảng contact_field_evidence:
@@ -196,6 +209,7 @@ export function ContactDetail({ contactId }: { contactId: string }) {
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [gaps, setGaps] = useState<ContactGaps | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -215,9 +229,10 @@ export function ContactDetail({ contactId }: { contactId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const [detailRes, companiesRes] = await Promise.all([
+      const [detailRes, companiesRes, timelineRes] = await Promise.all([
         fetch(`/api/contacts/${contactId}`),
         fetch('/api/companies'),
+        fetch(`/api/contacts/${contactId}/timeline`),
       ]);
       const detail = await detailRes.json();
       if (!detailRes.ok) throw new Error(detail.message ?? 'Không tải được liên hệ.');
@@ -236,6 +251,25 @@ export function ContactDetail({ contactId }: { contactId: string }) {
       if (companiesRes.ok) {
         const cj = await companiesRes.json();
         setCompanies(cj.companies ?? []);
+      }
+      // Khoảng trống bằng chứng — lỗi/thiếu `gaps` thì giữ null (section ẩn).
+      if (timelineRes.ok) {
+        const tj = await timelineRes.json().catch(() => null);
+        const g = tj?.gaps;
+        if (
+          g &&
+          Array.isArray(g.missing_fields) &&
+          Array.isArray(g.unverified_fields)
+        ) {
+          setGaps({
+            missing_fields: g.missing_fields,
+            unverified_fields: g.unverified_fields,
+          });
+        } else {
+          setGaps(null);
+        }
+      } else {
+        setGaps(null);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không tải được liên hệ.');
@@ -472,6 +506,51 @@ export function ContactDetail({ contactId }: { contactId: string }) {
           </p>
         </CardContent>
       </Card>
+
+      {/* Khoảng trống bằng chứng — ẩn khi API chưa trả `gaps` */}
+      {gaps &&
+       (gaps.missing_fields.length > 0 || gaps.unverified_fields.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TriangleAlert className="h-4 w-4" /> Khoảng trống bằng chứng
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {gaps.missing_fields.length > 0 && (
+              <Alert>
+                <CircleHelp className="h-4 w-4" />
+                <AlertTitle>Thiếu dữ liệu</AlertTitle>
+                <AlertDescription className="flex flex-wrap items-center gap-1.5">
+                  <span>Các trường sau chưa có giá trị:</span>
+                  {gaps.missing_fields.map((field, index) => (
+                    <Badge key={`${field}-${index}`} variant="outline">
+                      {FIELD_LABELS[field] ?? field}
+                    </Badge>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
+            {gaps.unverified_fields.length > 0 && (
+              <div>
+                <p className="text-sm font-medium">Trường chưa chắc chắn</p>
+                <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                  {gaps.unverified_fields.map((item, index) => (
+                    <li key={`${item.field_name}-${index}`}>
+                      <Badge variant="outline">
+                        {FIELD_LABELS[item.field_name] ?? item.field_name}
+                        {' — '}
+                        {VERIFY_LABELS[item.verification_state] ??
+                          item.verification_state}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Nguồn gốc dữ liệu */}
       <Card>

@@ -18,6 +18,7 @@ import { cn } from '@kit/ui/utils';
 import { EventSelector } from './event-selector';
 import { FollowUpQueue } from './follow-up-queue';
 import { RemindersWidget } from './reminders-widget';
+import { DataPolicyCard } from './data-policy-card';
 
 type Stats = {
   contacts_active: number;
@@ -144,6 +145,9 @@ export function DashboardOverview() {
 
       {/* Hàng đợi follow-up: cần soạn / chờ duyệt / đã gửi */}
       <FollowUpQueue />
+
+      {/* Chính sách dữ liệu: retention liên hệ đã lưu trữ + dọn dẹp thủ công */}
+      <DataPolicyCard />
 
       {/* Thẻ số liệu */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

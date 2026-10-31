@@ -5,6 +5,8 @@ import { z } from 'zod';
 
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { computeContactGaps, type ContactGapValues } from '~/lib/contacts/contact-gaps';
+
 /**
  * GET /api/contacts/[id]/timeline
  *
@@ -15,6 +17,12 @@ import { getSupabaseServerClient } from '@kit/supabase/server-client';
  * - follow_ups (contact_id) — nháp/đã duyệt/đã gửi
  * - audit_logs (entity_type='contact', entity_id=contact) — hành động khác
  *   (trừ contact.created — đã có entry quét thẻ tương đương).
+ *
+ * FR-011/012 — trả thêm `gaps` (computed, KHÔNG phải entry timeline):
+ * - missing_fields: các trường chính chưa có giá trị trên contact
+ *   (website/company_name lấy từ company liên kết).
+ * - unverified_fields: trường có evidence nhưng chưa xác thực
+ *   (unreviewed/uncertain/inferred — theo evidence MỚI NHẤT mỗi trường).
  */
 
 const entrySchema = z.object({
@@ -69,10 +77,13 @@ export async function GET(
     );
   }
 
-  // Contact phải thuộc user — đồng thời lấy tên để UI hiển thị.
+  // Contact phải thuộc user — lấy tên + các trường chính để tính khoảng trống
+  // (FR-011/012). website/display_name lấy từ company liên kết (nếu có).
   const { data: contact } = await supabase
     .from('contacts')
-    .select('id, full_name')
+    .select(
+      'id, full_name, email, phone, address, job_title, companies(website, display_name)',
+    )
     .eq('id', id)
     .eq('user_id', user.id)
     .maybeSingle();
@@ -84,7 +95,7 @@ export async function GET(
     );
   }
 
-  const [importsRes, notesRes, followUpsRes, auditsRes] = await Promise.all([
+  const [importsRes, notesRes, followUpsRes, auditsRes, evidenceRes] = await Promise.all([
     supabase
       .from('card_imports')
       .select('id, state, recognition_provider, recognition_model, created_at')
@@ -111,6 +122,15 @@ export async function GET(
       .eq('entity_id', id)
       .order('created_at', { ascending: false })
       .limit(30),
+    // Evidence mới nhất trước — computeContactGaps lấy state của dòng đầu
+    // tiên theo từng field_name.
+    supabase
+      .from('contact_field_evidence')
+      .select('field_name, verification_state')
+      .eq('contact_id', id)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(200),
   ]);
 
   const timeline: TimelineEntry[] = [];
@@ -190,8 +210,22 @@ export async function GET(
 
   timeline.sort((a, b) => (a.at < b.at ? 1 : -1));
 
+  // FR-011/012 — khoảng trống bằng chứng: computed từ contact row + evidence
+  // (frontend tự render section riêng, không phải entry timeline).
+  const company = contact.companies;
+  const gapValues: ContactGapValues = {
+    email: contact.email,
+    phone: contact.phone,
+    address: contact.address,
+    job_title: contact.job_title,
+    website: company?.website ?? null,
+    company_name: company?.display_name ?? null,
+  };
+  const gaps = computeContactGaps(gapValues, evidenceRes.data ?? []);
+
   return NextResponse.json({
     contact: { id: contact.id, full_name: contact.full_name },
     timeline: timeline.map((entry) => entrySchema.parse(entry)),
+    gaps,
   });
 }
