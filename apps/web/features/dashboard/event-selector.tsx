@@ -1,7 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, MapPin, Plus, RefreshCw } from 'lucide-react';
+import {
+  CalendarDays,
+  CircleDollarSign,
+  MapPin,
+  Plus,
+  RefreshCw,
+  TrendingUp,
+} from 'lucide-react';
 
 import { Button } from '@kit/ui/button';
 import {
@@ -37,13 +44,32 @@ type EventItem = {
   starts_at?: string | null;
 };
 
+type EventFunnel = {
+  total: number;
+  contacted: number;
+  meeting: number;
+  deal: number;
+};
+
 type EventStats = {
   contacts: number;
   cardImports: number;
   followUpsSent: number;
+  // Mở rộng hợp đồng mới — tuỳ chọn để không vỡ khi backend chưa triển khai.
+  funnel?: EventFunnel | null;
+  costUsd?: number | null;
+  leadsPerCost?: number | null;
 };
 
 const STORAGE_KEY = 'eventlead.selected-event';
+
+/** Các stage của phễu theo hợp đồng stats.funnel (nhóm theo relationship_stage). */
+const FUNNEL_STAGES = [
+  { key: 'total', label: 'Tổng lead' },
+  { key: 'contacted', label: 'Đã liên hệ' },
+  { key: 'meeting', label: 'Hẹn meeting' },
+  { key: 'deal', label: 'Deal' },
+] as const;
 
 function formatDate(iso?: string | null) {
   if (!iso) return null;
@@ -125,13 +151,18 @@ export function EventSelector() {
         const res = await fetch(`/api/events/${selectedId}/stats`);
         if (!res.ok) throw new Error();
         const json = await res.json();
-        // Hợp đồng: { stats: { contacts, cardImports, followUpsSent } }.
+        // Hợp đồng: { stats: { contacts, cardImports, followUpsSent,
+        // funnel?, costUsd?, leadsPerCost? } } — các trường mới tuỳ chọn.
         const s = json.stats ?? json;
         if (!cancelled) {
           setStats({
             contacts: s.contacts ?? 0,
             cardImports: s.cardImports ?? 0,
             followUpsSent: s.followUpsSent ?? 0,
+            funnel: s.funnel ?? null,
+            costUsd: typeof s.costUsd === 'number' ? s.costUsd : null,
+            leadsPerCost:
+              typeof s.leadsPerCost === 'number' ? s.leadsPerCost : null,
           });
           setStatsError(false);
         }
@@ -190,6 +221,15 @@ export function EventSelector() {
 
   const selected = events.find((e) => e.id === selectedId) ?? null;
   const selectedDate = formatDate(selected?.starts_at);
+  // Mốc chuẩn hoá chiều rộng thanh phễu (tránh chia cho 0).
+  const maxFunnel = stats?.funnel
+    ? Math.max(
+        stats.funnel.total,
+        stats.funnel.contacted,
+        stats.funnel.meeting,
+        stats.funnel.deal,
+      )
+    : 0;
 
   return (
     <Card>
@@ -287,6 +327,80 @@ export function EventSelector() {
             ) : (
               <div className="flex items-center justify-center py-4">
                 <Spinner />
+              </div>
+            )}
+
+            {stats && stats.funnel && (
+              <div className="space-y-1 rounded-lg border bg-muted/20 p-3">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <TrendingUp className="h-3.5 w-3.5" /> Phễu chuyển đổi
+                </p>
+                {FUNNEL_STAGES.map((stage, index) => {
+                  const value = stats.funnel?.[stage.key] ?? 0;
+                  const prevKey =
+                    index > 0 ? FUNNEL_STAGES[index - 1]?.key : undefined;
+                  const prev =
+                    prevKey !== undefined
+                      ? (stats.funnel?.[prevKey] ?? 0)
+                      : null;
+                  const conv =
+                    prev !== null && prev > 0
+                      ? Math.round((value / prev) * 100)
+                      : null;
+                  const width = Math.min(
+                    100,
+                    Math.round((value / Math.max(maxFunnel, 1)) * 100),
+                  );
+                  return (
+                    <div key={stage.key}>
+                      {index > 0 && (
+                        <p className="mb-1 ml-1 text-[11px] leading-none text-muted-foreground">
+                          {conv !== null ? (
+                            <>
+                              <span className="font-semibold text-foreground">
+                                {conv}%
+                              </span>{' '}
+                              từ giai đoạn trước
+                            </>
+                          ) : (
+                            '—'
+                          )}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between gap-2 text-sm">
+                        <span>{stage.label}</span>
+                        <span className="font-semibold tabular-nums">{value}</span>
+                      </div>
+                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${width}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {stats && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border px-3 py-2 text-xs">
+                <span className="inline-flex items-center gap-1.5">
+                  <CircleDollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">Chi phí AI</span>
+                  <span className="font-semibold tabular-nums">
+                    {stats.costUsd != null ? `$${stats.costUsd.toFixed(2)}` : '—'}
+                  </span>
+                  <span className="text-muted-foreground">(ước lượng)</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Chi phí mỗi lead</span>
+                  <span className="font-semibold tabular-nums">
+                    {stats.leadsPerCost != null
+                      ? `$${stats.leadsPerCost.toFixed(2)} / lead`
+                      : '—'}
+                  </span>
+                </span>
               </div>
             )}
           </>

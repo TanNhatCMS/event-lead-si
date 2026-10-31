@@ -2,6 +2,7 @@ import { Page, PageMobileNavigation, PageNavigation } from '@kit/ui/page';
 import { SidebarProvider } from '@kit/ui/sidebar';
 
 import { AppLogo } from '~/components/app-logo';
+import { GlobalSearch } from '~/components/global-search';
 import { navigationConfig } from '~/config/navigation.config';
 
 // home imports
@@ -19,11 +20,18 @@ import { HomeSidebar } from './_components/home-sidebar';
  * The session moved down into HomeSidebar, behind a Suspense boundary.
  */
 function HomeLayout({ children }: React.PropsWithChildren) {
-  if (navigationConfig.style === 'sidebar') {
-    return <SidebarLayout>{children}</SidebarLayout>;
-  }
+  return (
+    <>
+      {navigationConfig.style === 'sidebar' ? (
+        <SidebarLayout>{children}</SidebarLayout>
+      ) : (
+        <HeaderLayout>{children}</HeaderLayout>
+      )}
 
-  return <HeaderLayout>{children}</HeaderLayout>;
+      {/* ⌘K / Ctrl+K — tìm nhanh liên hệ, công ty, ghi chú (dialog portal). */}
+      <GlobalSearch />
+    </>
+  );
 }
 
 export default HomeLayout;

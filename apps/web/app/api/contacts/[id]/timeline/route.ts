@@ -106,7 +106,7 @@ export async function GET(
       .limit(50),
     supabase
       .from('audit_logs')
-      .select('action, summary, created_at')
+      .select('action, summary, metadata, created_at')
       .eq('entity_type', 'contact')
       .eq('entity_id', id)
       .order('created_at', { ascending: false })
@@ -157,6 +157,29 @@ export async function GET(
   for (const audit of auditsRes.data ?? []) {
     // contact.created trùng với entry quét thẻ — bỏ để không lặp.
     if (audit.action === 'contact.created') continue;
+    // lead.assessed (agent enrichment chấm độ nóng lead) — render riêng
+    // kind 'lead_assessment' kèm metadata để UI vẽ badge độ nóng.
+    if (audit.action === 'lead.assessed') {
+      const meta = (audit.metadata ?? {}) as Record<string, unknown>;
+      const heat = typeof meta.heat === 'string' ? meta.heat : '';
+      timeline.push({
+        kind: 'lead_assessment',
+        title: heat
+          ? 'AI đánh giá lead: ' + heat.toUpperCase()
+          : 'AI đánh giá lead',
+        detail:
+          typeof meta.reason === 'string' && meta.reason
+            ? meta.reason
+            : (audit.summary || audit.action),
+        at: audit.created_at,
+        meta: {
+          heat,
+          heat_confidence: meta.heat_confidence ?? null,
+          suggested_labels: meta.suggested_labels ?? [],
+        },
+      });
+      continue;
+    }
     timeline.push({
       kind: 'audit',
       title: audit.summary || audit.action,

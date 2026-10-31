@@ -142,9 +142,36 @@ export const companyFindingsSchema = z.object({
 
 export type CompanyFindings = z.infer<typeof companyFindingsSchema>;
 
+// ---------------------------------------------------------------------------
+// Lead assessment — chấm điểm độ nóng lead (AI gợi ý, không ghi đè contact)
+// ---------------------------------------------------------------------------
+
+/**
+ * Đánh giá độ nóng lead do agent chấm sau khi làm giàu dữ liệu. CHỈ là gợi ý
+ * hiển thị cho người dùng (badge + timeline) — KHÔNG tự đổi relationship_stage
+ * hay labels của contact (hiến chương "AI gợi ý, người quyết định").
+ */
+export const leadAssessmentSchema = z.object({
+  heat: z.enum(["hot", "warm", "cold"]),
+  /** Độ tin cậy của mức heat vừa chấm (0–1). */
+  heat_confidence: z
+    .number()
+    .min(0, "Độ tin cậy phải từ 0 đến 1")
+    .max(1, "Độ tin cậy phải từ 0 đến 1"),
+  /** Tối đa 5 nhãn gợi ý — UI tự merge, không ghi đè nhãn user đã tạo. */
+  suggested_labels: z
+    .array(z.string().min(1, "Nhãn không được rỗng").max(40))
+    .max(5, "Tối đa 5 nhãn gợi ý"),
+  /** Tóm tắt ngắn lý do chấm (tiếng Việt). */
+  reason: z.string().min(1, "Phải nêu lý do chấm").max(500),
+});
+
+export type LeadAssessment = z.infer<typeof leadAssessmentSchema>;
+
 export const enrichmentResultSchema = z.object({
   findings: z.array(enrichmentFindingSchema),
   company: companyFindingsSchema.optional(),
+  lead_assessment: leadAssessmentSchema.optional(),
   steps: z.array(enrichmentStepSchema),
   modelUsed: z.string(),
 });
@@ -155,6 +182,7 @@ export type EnrichmentResult = z.infer<typeof enrichmentResultSchema>;
 export const enrichmentOutputSchema = z.object({
   findings: z.array(enrichmentFindingSchema).max(10),
   company: companyFindingsSchema.optional(),
+  lead_assessment: leadAssessmentSchema.optional(),
 });
 
 export type EnrichmentOutput = z.infer<typeof enrichmentOutputSchema>;

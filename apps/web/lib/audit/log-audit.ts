@@ -21,6 +21,7 @@ export type AuditAction =
   | 'document.upload'
   | 'document.delete'
   | 'enrichment.run'
+  | 'lead.assessed'
   | 'ai_model.update'
   | 'share.create';
 

@@ -58,6 +58,9 @@ const MAX_STEPS = 6;
 /** Skill hướng dẫn agent nghiên cứu hồ sơ công ty (FR-008) — file .md editable. */
 const COMPANY_RESEARCH_SKILL_PATH = "skills/company-research.md";
 
+/** Skill hướng dẫn agent chấm điểm độ nóng lead — file .md editable. */
+const LEAD_SCORING_SKILL_PATH = "skills/lead-scoring.md";
+
 export class EnrichmentNotConfiguredError extends Error {
   constructor(message: string) {
     super(message);
@@ -86,6 +89,8 @@ function buildUserPrompt(recognized: RecognizedCard): string {
     "Nếu có tên công ty (companyName): sau khi xong phần liên hệ, nghiên cứu tiếp hồ sơ doanh nghiệp",
     "theo skill company-research và trả thêm object `company` (các trường còn thiếu, mỗi trường kèm",
     "confidence + evidence là nguồn web thật).",
+    "Cuối cùng, chấm độ nóng lead theo skill lead-scoring và trả object `lead_assessment`",
+    "(heat + heat_confidence + suggested_labels + reason).",
   ].join("\n");
 }
 
@@ -229,14 +234,18 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
     ? await getPrompt('lead_enrichment', input.userId ?? '', input.supabase)
     : getPromptDefault('lead_enrichment')?.content ?? '';
 
-  // Skill nghiên cứu hồ sơ công ty (FR-008) — gắn ngay sau system prompt gốc
-  // để luôn có mặt bất kể prompt gốc lấy từ DB hay default.
-  const promptWithCompanySkill =
-    basePrompt + "\n\n" + loadEnrichmentMarkdown(COMPANY_RESEARCH_SKILL_PATH);
+  // Skill nghiên cứu hồ sơ công ty (FR-008) + skill chấm điểm lead — gắn ngay
+  // sau system prompt gốc để luôn có mặt bất kể prompt gốc lấy từ DB hay default.
+  const promptWithSkills =
+    basePrompt +
+    "\n\n" +
+    loadEnrichmentMarkdown(COMPANY_RESEARCH_SKILL_PATH) +
+    "\n\n" +
+    loadEnrichmentMarkdown(LEAD_SCORING_SKILL_PATH);
 
   // Năng lực agent do user cấu hình ở /admin/agent: plugins (tắt tool),
   // MCP servers (hợp nhất tool ngoài), hooks (audit), skills (markdown).
-  let systemPrompt = promptWithCompanySkill;
+  let systemPrompt = promptWithSkills;
   let tools: ToolSet = baseTools;
   if (input.userId && input.supabase) {
     const tooling = await loadAgentTooling(input.userId, input.supabase);
@@ -310,6 +319,7 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
   return enrichmentResultSchema.parse({
     findings,
     company: generated.output?.company ?? undefined,
+    lead_assessment: generated.output?.lead_assessment ?? undefined,
     steps: summarizeSteps(generated),
     modelUsed: usedModel,
   });

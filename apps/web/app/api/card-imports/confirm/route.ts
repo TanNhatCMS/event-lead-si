@@ -7,6 +7,8 @@ import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
 import { logAudit } from '~/lib/audit/log-audit';
 import { recognizedCardSchema } from '~/lib/ai/card-recognition';
+import { AUTO_ENRICH_ON_SCAN_PLUGIN } from '~/lib/ai/agent-tooling';
+import { startBatchEnrichment } from '~/lib/ai/enrichment/batch-start';
 import { enqueueBusinessIndexSafe } from '~/lib/ai/rag/contact-index';
 import { dispatchWebhook } from '~/lib/webhooks/dispatch';
 
@@ -372,6 +374,38 @@ export async function POST(request: Request) {
     company_id: companyId,
     import_id: input.importId,
   });
+
+  // 6) Auto-enrich (plugin `auto_enrich_on_scan` trong agent_config.plugins,
+  //    bật ở /admin/agent): đẩy contact vừa tạo vào hàng đợi enrichment nền —
+  //    cùng logic với POST /api/enrichment/batch (helper dùng chung). Mặc định
+  //    KHÔNG bật. Best-effort: mọi lỗi chỉ console.warn, không fail confirm vì
+  //    hồ sơ liên hệ đã tạo thành công — phần enrichment chỉ là gợi ý thêm.
+  try {
+    const { data: agentConfig } = await supabase
+      .from('agent_config')
+      .select('plugins')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const plugins = (agentConfig?.plugins ?? null) as Record<string, unknown> | null;
+    if (plugins && plugins[AUTO_ENRICH_ON_SCAN_PLUGIN] === true) {
+      const outcome = await startBatchEnrichment({
+        userId: user.id,
+        contactIds: [contact.id],
+        supabase,
+      });
+      if (outcome.started === 0) {
+        console.warn(
+          '[card-imports] auto-enrich không start được run: ' +
+            (outcome.skipped[0]?.reason ?? 'không rõ lý do'),
+        );
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '[card-imports] auto-enrich thất bại (bỏ qua): ' +
+        (err instanceof Error ? err.message : 'lỗi không xác định'),
+    );
+  }
 
   return NextResponse.json(
     {

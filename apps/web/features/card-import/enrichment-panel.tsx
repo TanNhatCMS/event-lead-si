@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { Badge } from "@kit/ui/badge";
 import { Button } from "@kit/ui/button";
 import { Spinner } from "@kit/ui/spinner";
 import { cn } from "@kit/ui/utils";
@@ -27,6 +28,30 @@ const FIELD_LABELS: Record<EnrichableField, string> = {
   phone: "Điện thoại",
   address: "Địa chỉ",
   website: "Website",
+};
+
+type LeadHeat = "hot" | "warm" | "cold";
+
+/**
+ * Đánh giá "độ nóng" lead do agent trả về kèm kết quả enrichment
+ * (hợp đồng: result.lead_assessment). Tuỳ chọn — vắng mặt thì không hiển thị,
+ * không ảnh hưởng luồng findings hiện có.
+ */
+interface LeadAssessment {
+  heat: LeadHeat;
+  suggested_labels?: string[];
+  reason?: string | null;
+}
+
+const HEAT_META: Partial<
+  Record<LeadHeat, { label: string; className: string }>
+> = {
+  hot: { label: "Nóng", className: "border-red-200 bg-red-100 text-red-700" },
+  warm: {
+    label: "Ấm",
+    className: "border-amber-200 bg-amber-100 text-amber-700",
+  },
+  cold: { label: "Lạnh", className: "border-sky-200 bg-sky-100 text-sky-700" },
 };
 
 type PanelStatus = "idle" | "loading" | "done" | "error" | "not_configured";
@@ -58,6 +83,9 @@ export function EnrichmentPanel({ recognized, onApply, fieldLabels }: Enrichment
   const [findings, setFindings] = useState<EnrichmentFinding[]>([]);
   const [steps, setSteps] = useState<EnrichmentStep[]>([]);
   const [modelUsed, setModelUsed] = useState<string | null>(null);
+  const [leadAssessment, setLeadAssessment] = useState<LeadAssessment | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [showSteps, setShowSteps] = useState(false);
@@ -92,6 +120,7 @@ export function EnrichmentPanel({ recognized, onApply, fieldLabels }: Enrichment
     backgroundRunIdRef.current = null;
     setBackgroundRunId(null);
     setBgStatus("idle");
+    setLeadAssessment(null);
   }, [recognized, clearPoll]);
 
   /**
@@ -118,10 +147,12 @@ export function EnrichmentPanel({ recognized, onApply, fieldLabels }: Enrichment
                   findings?: EnrichmentFinding[];
                   steps?: EnrichmentStep[];
                   modelUsed?: string | null;
+                  lead_assessment?: LeadAssessment | null;
                 };
                 findings?: EnrichmentFinding[];
                 steps?: EnrichmentStep[];
                 modelUsed?: string | null;
+                lead_assessment?: LeadAssessment | null;
                 error?: { message?: string };
                 message?: string;
               }
@@ -146,6 +177,7 @@ export function EnrichmentPanel({ recognized, onApply, fieldLabels }: Enrichment
             setFindings(result.findings ?? []);
             setSteps(result.steps ?? []);
             setModelUsed(result.modelUsed ?? null);
+            setLeadAssessment(result.lead_assessment ?? null);
             setApplied(new Set());
             setStatus("done");
             setBgStatus("idle");
@@ -185,6 +217,7 @@ export function EnrichmentPanel({ recognized, onApply, fieldLabels }: Enrichment
     setBgStatus("idle");
     setStatus("loading");
     setError(null);
+    setLeadAssessment(null);
     try {
       const res = await fetch("/api/enrichment/run", {
         method: "POST",
@@ -196,6 +229,7 @@ export function EnrichmentPanel({ recognized, onApply, fieldLabels }: Enrichment
             findings?: EnrichmentFinding[];
             steps?: EnrichmentStep[];
             modelUsed?: string;
+            lead_assessment?: LeadAssessment | null;
             code?: string;
             message?: string;
           }
@@ -211,6 +245,7 @@ export function EnrichmentPanel({ recognized, onApply, fieldLabels }: Enrichment
       setFindings(body?.findings ?? []);
       setSteps(body?.steps ?? []);
       setModelUsed(body?.modelUsed ?? null);
+      setLeadAssessment(body?.lead_assessment ?? null);
       setApplied(new Set());
       setStatus("done");
     } catch (err) {
@@ -230,6 +265,7 @@ export function EnrichmentPanel({ recognized, onApply, fieldLabels }: Enrichment
     setError(null);
     setBackgroundRunId(null);
     setBgStatus("idle");
+    setLeadAssessment(null);
     try {
       const res = await fetch("/api/enrichment/start", {
         method: "POST",
@@ -344,6 +380,31 @@ export function EnrichmentPanel({ recognized, onApply, fieldLabels }: Enrichment
 
       {status === "done" && (
         <div className="space-y-3">
+          {leadAssessment && (
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-medium text-slate-500">
+                  Đánh giá lead:
+                </span>
+                <Badge
+                  variant="outline"
+                  className={HEAT_META[leadAssessment.heat]?.className ?? ""}
+                >
+                  {HEAT_META[leadAssessment.heat]?.label ?? leadAssessment.heat}
+                </Badge>
+                {(leadAssessment.suggested_labels ?? []).map((label) => (
+                  <Badge key={label} variant="secondary">
+                    {label}
+                  </Badge>
+                ))}
+              </div>
+              {leadAssessment.reason && (
+                <p className="mt-1.5 text-xs text-slate-600">
+                  {leadAssessment.reason}
+                </p>
+              )}
+            </div>
+          )}
           {findings.length === 0 ? (
             <p className="text-sm text-slate-600">
               AI không tìm thêm được gợi ý đáng tin cậy nào từ dữ liệu hiện tại.

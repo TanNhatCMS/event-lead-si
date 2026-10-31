@@ -3,6 +3,7 @@ import { getSupabaseServerAdminClient } from "@kit/supabase/server-admin-client"
 import type { RecognizedCard } from "~/lib/ai/card-recognition";
 import { EnrichmentNotConfiguredError, runEnrichmentLoop } from "./loop";
 import { applyCompanyFindings } from "./apply";
+import { recordLeadAssessment } from "./assessment";
 import type { EnrichmentResult } from "./types";
 
 /**
@@ -61,6 +62,36 @@ async function runEnrichmentStep(
         console.warn(
           "[enrichment] áp company findings thất bại (bỏ qua): " +
             (err instanceof Error ? err.message : String(err)),
+        );
+      }
+    }
+
+    // Ghi nhận lead assessment (nếu agent chấm và đủ tin cậy): KHÔNG đổi
+    // contacts — chỉ ghi audit 'lead.assessed' để timeline hiển thị entry
+    // kind 'lead_assessment'. Best-effort — lỗi ghi không làm fail run.
+    if (target?.contactId && result.lead_assessment) {
+      try {
+        const recorded = await recordLeadAssessment({
+          userId,
+          contactId: target.contactId,
+          assessment: result.lead_assessment,
+          modelUsed: result.modelUsed,
+          supabase,
+        });
+        if (recorded.recorded) {
+          console.log(
+            "[enrichment] đã ghi lead assessment: heat=" +
+              result.lead_assessment.heat
+          );
+        } else if (recorded.skippedReason) {
+          console.log(
+            "[enrichment] bỏ qua lead assessment: " + recorded.skippedReason
+          );
+        }
+      } catch (err) {
+        console.warn(
+          "[enrichment] ghi lead assessment thất bại (bỏ qua): " +
+            (err instanceof Error ? err.message : String(err))
         );
       }
     }

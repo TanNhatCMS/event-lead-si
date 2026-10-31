@@ -54,6 +54,15 @@ export const DEFAULT_HOOKS: Record<string, boolean> = {
   audit_tool_calls: true,
 };
 
+/**
+ * Key trong `agent_config.plugins` bật TỰ ĐỘNG làm giàu dữ liệu ngay sau khi
+ * người dùng xác nhận danh thiếp (mặc định KHÔNG bật — opt-in, khác semantics
+ * với plugins tắt tool vốn mặc định bật). Đọc/ghi qua API /api/agent/config
+ * (GET trả `plugins` + `auto_enrich_on_scan`; PATCH merge `plugins`), enforcement
+ * ở POST /api/card-imports/confirm đọc trực tiếp cột plugins.
+ */
+export const AUTO_ENRICH_ON_SCAN_PLUGIN = 'auto_enrich_on_scan';
+
 // ---------------------------------------------------------------------------
 // Đọc cấu hình
 // ---------------------------------------------------------------------------

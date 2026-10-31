@@ -7,6 +7,7 @@ import {
   Plug,
   Plus,
   RefreshCw,
+  Sparkles,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -731,6 +732,10 @@ function useAgentConfig() {
 
 function HooksTab() {
   const { config, notice, busy, patch } = useAgentConfig();
+  // Plugin "auto_enrich_on_scan" — hợp đồng GET/PATCH /api/agent/config
+  // (plugins: Record<string, boolean>). Mặc định TẮT cho tới khi backend
+  // trả về key này = true.
+  const autoEnrich = config?.plugins?.auto_enrich_on_scan === true;
 
   return (
     <div className="space-y-4">
@@ -759,6 +764,34 @@ function HooksTab() {
           </div>
         );
       })}
+
+      {/* Tự động hoá — plugin hành vi, hợp đồng PATCH merge theo key. */}
+      <div className="pt-2">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Tự động hoá
+        </p>
+        <div className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <Sparkles className="size-4 text-primary" />
+              Tự động làm giàu dữ liệu khi quét xong
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Contact mới sau khi xác nhận sẽ được AI bổ sung thông tin nền.
+            </p>
+          </div>
+          <Switch
+            checked={autoEnrich}
+            disabled={busy || config === null}
+            onCheckedChange={(value) =>
+              void patch({
+                plugins: { ...config?.plugins, auto_enrich_on_scan: value },
+              })
+            }
+            aria-label="Tự động làm giàu dữ liệu khi quét xong"
+          />
+        </div>
+      </div>
     </div>
   );
 }
