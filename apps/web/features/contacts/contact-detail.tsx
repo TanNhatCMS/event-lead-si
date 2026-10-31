@@ -1,16 +1,23 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Archive,
   ArchiveRestore,
+  BadgeCheck,
   Building2,
+  CircleHelp,
+  CircleMinus,
   Pencil,
   ShieldCheck,
+  Sparkles,
   Trash2,
+  TriangleAlert,
+  UserCheck,
   X,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import { NotesPanel } from './notes-panel';
 
@@ -114,6 +121,61 @@ const FIELD_LABELS: Record<string, string> = {
   company_id: 'Công ty',
 };
 
+// Enum verification_state của bảng contact_field_evidence:
+// ('unreviewed', 'user_confirmed', 'source_verified', 'inferred', 'uncertain', 'unavailable').
+const FIELD_STATE_META: Record<
+  string,
+  { label: string; icon: LucideIcon; className: string }
+> = {
+  source_verified: {
+    label: 'Đã xác minh',
+    icon: BadgeCheck,
+    className: 'text-emerald-600 dark:text-emerald-400',
+  },
+  user_confirmed: {
+    label: 'Người dùng xác nhận',
+    icon: UserCheck,
+    className: 'text-sky-600 dark:text-sky-400',
+  },
+  inferred: {
+    label: 'AI suy luận',
+    icon: Sparkles,
+    className: 'text-violet-600 dark:text-violet-400',
+  },
+  uncertain: {
+    label: 'Chưa chắc chắn',
+    icon: TriangleAlert,
+    className: 'text-amber-600 dark:text-amber-400',
+  },
+  unreviewed: {
+    label: 'Chưa xem lại',
+    icon: CircleHelp,
+    className: 'text-muted-foreground',
+  },
+  unavailable: {
+    label: 'Không tìm thấy',
+    icon: CircleMinus,
+    className: 'text-muted-foreground',
+  },
+};
+
+/**
+ * Marker nhỏ cạnh nhãn trường: icon + tooltip nhãn trạng thái xác minh
+ * của evidence mới nhất cho trường đó. Không có/không nhận dạng được
+ * trạng thái thì không hiển thị gì.
+ */
+function FieldStateMarker({ state }: { state: string }) {
+  const meta = FIELD_STATE_META[state];
+  if (!meta) return null;
+  const Icon = meta.icon;
+  return (
+    <span title={meta.label} className="inline-flex items-center">
+      <Icon className={cn('h-3.5 w-3.5 shrink-0', meta.className)} />
+      <span className="sr-only">{meta.label}</span>
+    </span>
+  );
+}
+
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString('vi-VN', {
     day: '2-digit',
@@ -185,6 +247,18 @@ export function ContactDetail({ contactId }: { contactId: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Evidence mới nhất cho từng trường — dùng cho marker trạng thái xác minh.
+  const latestEvidence = useMemo(() => {
+    const map = new Map<string, Evidence>();
+    for (const e of evidence) {
+      const current = map.get(e.field_name);
+      if (!current || new Date(e.created_at) > new Date(current.created_at)) {
+        map.set(e.field_name, e);
+      }
+    }
+    return map;
+  }, [evidence]);
 
   const set = (key: keyof typeof form) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -354,16 +428,28 @@ export function ContactDetail({ contactId }: { contactId: string }) {
           ) : (
             <dl className="grid gap-4 sm:grid-cols-2">
               {[
-                ['Email', contact.email],
-                ['SĐT', contact.phone],
-                ['Địa chỉ', contact.address],
-                ['Ngôn ngữ', contact.preferred_language],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
-                  <dd className="mt-1 text-sm">{value || '—'}</dd>
-                </div>
-              ))}
+                { name: 'email', label: 'Email', value: contact.email },
+                { name: 'phone', label: 'SĐT', value: contact.phone },
+                { name: 'address', label: 'Địa chỉ', value: contact.address },
+                {
+                  name: 'preferred_language',
+                  label: 'Ngôn ngữ',
+                  value: contact.preferred_language,
+                },
+              ].map((f) => {
+                const fieldEvidence = latestEvidence.get(f.name);
+                return (
+                  <div key={f.name}>
+                    <dt className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {f.label}
+                      {fieldEvidence ? (
+                        <FieldStateMarker state={fieldEvidence.verification_state} />
+                      ) : null}
+                    </dt>
+                    <dd className="mt-1 text-sm">{f.value || '—'}</dd>
+                  </div>
+                );
+              })}
               <div>
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Giai đoạn</dt>
                 <dd className="mt-1 text-sm">

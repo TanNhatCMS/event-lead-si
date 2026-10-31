@@ -11,6 +11,8 @@ export type AuditAction =
   | 'company.create'
   | 'company.update'
   | 'company.delete'
+  | 'company.enriched'
+  | 'company.verified'
   | 'note.create'
   | 'note.update'
   | 'note.delete'

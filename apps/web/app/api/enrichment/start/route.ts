@@ -11,7 +11,7 @@ import { ENRICHABLE_FIELDS } from "~/lib/ai/enrichment/types";
 import { checkEnrichmentConfigured } from "~/lib/ai/enrichment/loop";
 import { recordRunOwner } from "~/lib/ai/enrichment/run-ownership";
 import { start } from "workflow/api";
-import { enrichLeadWorkflow } from "~/lib/ai/enrichment/workflow";
+import { enrichLeadWorkflow, type EnrichmentTarget } from "~/lib/ai/enrichment/workflow";
 
 const bodySchema = z
   .object({
@@ -95,10 +95,14 @@ export async function POST(request: Request) {
   }
 
   let recognized: RecognizedCard | undefined = parsed.data.recognized ?? parsed.data.fields;
+  // Đích áp company findings (FR-008): khi chạy từ cardImportId đã xác nhận,
+  // lookup contact → company_id để run nền hoàn tất tự điền trường công ty
+  // còn trống. Input tự do (recognized trực tiếp) thì không có đích.
+  let target: EnrichmentTarget | undefined;
   if (!recognized && parsed.data.cardImportId) {
     const { data, error } = await supabase
       .from("card_imports")
-      .select("recognition_result")
+      .select("recognition_result, confirmed_contact_id")
       .eq("id", parsed.data.cardImportId)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -111,6 +115,19 @@ export async function POST(request: Request) {
         { code: "import_not_found", message: "Không tìm thấy bản ghi quét danh thiếp.", request_id: requestId },
         { status: 404 },
       );
+    }
+    const confirmedContactId = data?.confirmed_contact_id ?? null;
+    if (confirmedContactId) {
+      const { data: contact } = await supabase
+        .from("contacts")
+        .select("company_id")
+        .eq("id", confirmedContactId)
+        .eq("user_id", user.id)
+        .maybeSingle<{ company_id: string | null }>();
+      target = {
+        contactId: confirmedContactId,
+        companyId: contact?.company_id ?? undefined,
+      };
     }
     const snapshot = recognizedCardSchema.safeParse(recognitionResult.recognized_snapshot);
     if (snapshot.success) {
@@ -148,7 +165,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const run = await start(enrichLeadWorkflow, [recognized, user.id]);
+  const run = await start(enrichLeadWorkflow, [recognized, user.id, target]);
 
   // Sở hữu lần chạy — quyết định cuối D5 phương án (b) (FR-015): ghi
   // mapping run→user ngay khi start để route tra cứu kiểm tra được sở

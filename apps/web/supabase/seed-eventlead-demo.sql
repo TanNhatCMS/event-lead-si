@@ -7,7 +7,9 @@
 -- (lib/ai/card-recognition.ts: schemaVersion 1, 7 trường
 -- rawValue/normalizedValue/state extracted|uncertain|missing), 4 meeting_notes
 -- (note_type: meeting_note/need/opportunity/next_step) trong đó 1 row có
--- due_at tương lai cho widget nhắc việc.
+-- due_at tương lai cho widget nhắc việc, 14 rows contact_field_evidence
+-- (2 card_import x 7 trường, source_type 'card_ocr') cho UI nguồn gốc
+-- trường ở trang chi tiết contact.
 --
 -- Chạy bằng (psql as postgres = superuser, bypass RLS):
 --   docker exec -i supabase_db_next-supabase-saas-kit-turbo-lite \
@@ -213,8 +215,115 @@ values
    'opportunity', null)
 on conflict (id) do nothing;
 
+-- ==================== contact_field_evidence (14: 2 x 7) =====================
+-- Bằng chứng nguồn gốc từng trường cho 2 contact có card_import seed (0011,
+-- 0015) — khớp shape route POST /api/card-imports/confirm ghi khi xác nhận:
+--   source_type 'card_ocr', source_reference = card_import id,
+--   raw_value = giá trị máy đọc thô (recognition_result.rawValue),
+--   normalized_value / value_snapshot = giá trị đã xác nhận,
+--   verification_state map theo state OCR (enum bảng:
+--     unreviewed|user_confirmed|source_verified|inferred|uncertain|unavailable):
+--     extracted -> 'user_confirmed' (người dùng đã xem/sửa rồi bấm xác nhận),
+--     uncertain -> 'uncertain', missing -> 'unavailable'.
+-- Contact nhập tay còn lại (0012..0014, 0016..0018) không có card_import nên
+-- không tạo evidence card_ocr — đúng theo hiến chương "nguồn gốc từng trường".
+
+insert into public.contact_field_evidence (id, user_id, contact_id, field_name,
+                                            raw_value, normalized_value, value_snapshot,
+                                            schema_version, source_type, source_reference,
+                                            retrieved_at, verification_state,
+                                            reviewed_by, reviewed_at)
+values
+  -- ---- card_import 0021 -> contact 0011 (Nguyễn Văn An) ----
+  ('00000000-0000-4000-8000-0000000000a1', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000011', 'full_name',
+   'NGUYỄN VĂN AN', 'Nguyễn Văn An', 'Nguyễn Văn An',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000021',
+   now() - interval '2 days', 'user_confirmed',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '2 days'),
+  ('00000000-0000-4000-8000-0000000000a2', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000011', 'job_title',
+   'GIÁM ĐỐC KINH DOANH', 'Giám đốc Kinh doanh', 'Giám đốc Kinh doanh',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000021',
+   now() - interval '2 days', 'user_confirmed',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '2 days'),
+  ('00000000-0000-4000-8000-0000000000a3', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000011', 'company_name',
+   'CÔNG TY CP CÔNG NGHỆ SAO VIỆT', 'Công ty Cổ phần Công nghệ Sao Việt', 'Công ty Cổ phần Công nghệ Sao Việt',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000021',
+   now() - interval '2 days', 'user_confirmed',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '2 days'),
+  ('00000000-0000-4000-8000-0000000000a4', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000011', 'email',
+   'nguyen.van.an@saoviet.com.vn', 'nguyen.van.an@saoviet.com.vn', 'nguyen.van.an@saoviet.com.vn',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000021',
+   now() - interval '2 days', 'user_confirmed',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '2 days'),
+  ('00000000-0000-4000-8000-0000000000a5', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000011', 'phone',
+   '+84 90 123 45 67', '+84 90 123 45 67', '+84 90 123 45 67',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000021',
+   now() - interval '2 days', 'user_confirmed',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '2 days'),
+  ('00000000-0000-4000-8000-0000000000a6', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000011', 'address',
+   null, null, null,
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000021',
+   now() - interval '2 days', 'unavailable',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '2 days'),
+  ('00000000-0000-4000-8000-0000000000a7', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000011', 'website',
+   'saoviet.com.vn', 'https://saoviet.com.vn', 'https://saoviet.com.vn',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000021',
+   now() - interval '2 days', 'uncertain',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '2 days'),
+  -- ---- card_import 0022 -> contact 0015 (Vũ Minh Tuấn) ----
+  ('00000000-0000-4000-8000-0000000000b1', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000015', 'full_name',
+   'VŨ MINH TUẤN', 'Vũ Minh Tuấn', 'Vũ Minh Tuấn',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000022',
+   now() - interval '1 day', 'user_confirmed',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '1 day'),
+  ('00000000-0000-4000-8000-0000000000b2', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000015', 'job_title',
+   'GIÁM ĐỐC SẢN PHẨM', 'Giám đốc Sản phẩm', 'Giám đốc Sản phẩm',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000022',
+   now() - interval '1 day', 'user_confirmed',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '1 day'),
+  ('00000000-0000-4000-8000-0000000000b3', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000015', 'company_name',
+   'FPT Software', 'FPT Software', 'FPT Software',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000022',
+   now() - interval '1 day', 'user_confirmed',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '1 day'),
+  ('00000000-0000-4000-8000-0000000000b4', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000015', 'email',
+   'minhtuan.vu@fpt-software.com', 'minhtuan.vu@fpt-software.com', 'minhtuan.vu@fpt-software.com',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000022',
+   now() - interval '1 day', 'user_confirmed',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '1 day'),
+  ('00000000-0000-4000-8000-0000000000b5', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000015', 'phone',
+   null, null, null,
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000022',
+   now() - interval '1 day', 'unavailable',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '1 day'),
+  ('00000000-0000-4000-8000-0000000000b6', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000015', 'address',
+   null, null, null,
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000022',
+   now() - interval '1 day', 'unavailable',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '1 day'),
+  ('00000000-0000-4000-8000-0000000000b7', 'f16c078f-0e23-419e-8afd-6fdfe1185132',
+   '00000000-0000-4000-8000-000000000015', 'website',
+   'fpt-software.com', 'https://fpt-software.com', 'https://fpt-software.com',
+   1, 'card_ocr', '00000000-0000-4000-8000-000000000022',
+   now() - interval '1 day', 'user_confirmed',
+   'f16c078f-0e23-419e-8afd-6fdfe1185132', now() - interval '1 day')
+on conflict (id) do nothing;
+
 -- =============================== kiểm chứng ==================================
--- Đếm số row seeded cho admin demo (kỳ vọng: 4/8/2/4).
+-- Đếm số row seeded cho admin demo (kỳ vọng: 4/8/2/4/14).
 
 select 'companies'     as bang, count(*) as so_row
   from public.companies
@@ -230,6 +339,10 @@ select 'card_imports', count(*)
 union all
 select 'meeting_notes', count(*)
   from public.meeting_notes
+ where user_id = 'f16c078f-0e23-419e-8afd-6fdfe1185132'
+union all
+select 'contact_field_evidence', count(*)
+  from public.contact_field_evidence
  where user_id = 'f16c078f-0e23-419e-8afd-6fdfe1185132';
 
 -- share_token mẫu (dùng để test trang /chia-se/[token]).

@@ -14,6 +14,7 @@ import { checkEnrichmentConfigured } from "~/lib/ai/enrichment/loop";
 import { recordRunOwner } from "~/lib/ai/enrichment/run-ownership";
 import { start } from "workflow/api";
 import { enrichLeadWorkflow } from "~/lib/ai/enrichment/workflow";
+import type { EnrichmentTarget } from "~/lib/ai/enrichment/workflow";
 
 /**
  * POST /api/enrichment/batch — làm giàu dữ liệu cho N contact có sẵn trong
@@ -41,6 +42,7 @@ const CONTACT_FIELDS = [
   "email",
   "phone",
   "address",
+  "company_id",
   "companies(name)",
 ] as const;
 
@@ -51,6 +53,7 @@ interface ContactRow {
   email: string | null;
   phone: string | null;
   address: string | null;
+  company_id: string | null;
   companies: { name: string | null } | { name: string | null }[] | null;
 }
 
@@ -81,6 +84,14 @@ function contactToRecognized(contact: ContactRow): RecognizedCard {
       website: field(null),
     },
   });
+}
+
+/**
+ * Đích áp company findings: contact có gắn công ty thì run nền hoàn tất sẽ
+ * tự điền các trường công ty còn trống (FR-008, xem lib/ai/enrichment/apply.ts).
+ */
+function targetFor(contact: ContactRow): EnrichmentTarget {
+  return { contactId: contact.id, companyId: contact.company_id ?? undefined };
 }
 
 function unauthorized(requestId: string) {
@@ -166,7 +177,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      const run = await start(enrichLeadWorkflow, [recognized, user.id]);
+      const run = await start(enrichLeadWorkflow, [recognized, user.id, targetFor(data as unknown as ContactRow)]);
       // Sở hữu lần chạy (FR-015, fail-closed): không ghi được mapping thì
       // KHÔNG phát hành runId — run vẫn chạy nền nhưng bị coi là không tồn
       // tại khi tra cứu (cùng hành vi với route /start).

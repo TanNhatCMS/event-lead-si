@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Building2, Check, Copy, ExternalLink, Users } from 'lucide-react';
 
@@ -102,26 +103,33 @@ export function CompaniesList() {
         <li key={c.id}>
           <Card>
             <CardContent className="flex items-start gap-4 p-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Building2 className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{c.display_name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {[c.industry, c.website].filter(Boolean).join(' · ') || '—'}
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">
-                    <Users className="mr-1 h-3 w-3" />
-                    {c.contacts_count} liên hệ
-                  </Badge>
-                  {c.profile_state && (
-                    <Badge variant="outline">
-                      {PROFILE_LABELS[c.profile_state] ?? c.profile_state}
-                    </Badge>
-                  )}
+              <Link
+                href={`/dashboard/cong-ty/${c.id}`}
+                className="group flex min-w-0 flex-1 items-start gap-4 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Building2 className="h-5 w-5" />
                 </div>
-              </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold group-hover:underline">
+                    {c.display_name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {[c.industry, c.website].filter(Boolean).join(' · ') || '—'}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                      <Users className="mr-1 h-3 w-3" />
+                      {c.contacts_count} liên hệ
+                    </Badge>
+                    {c.profile_state && (
+                      <Badge variant="outline">
+                        {PROFILE_LABELS[c.profile_state] ?? c.profile_state}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </Link>
               <div className="flex shrink-0 flex-col gap-1.5">
                 <Button
                   size="sm"

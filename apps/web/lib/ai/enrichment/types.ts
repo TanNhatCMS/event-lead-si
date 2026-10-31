@@ -86,8 +86,65 @@ export const enrichmentStepSchema = z.object({
 
 export type EnrichmentStep = z.infer<typeof enrichmentStepSchema>;
 
+// ---------------------------------------------------------------------------
+// Company findings — nghiên cứu hồ sơ doanh nghiệp (spec FR-008/FR-009)
+// ---------------------------------------------------------------------------
+
+/**
+ * Các trường hồ sơ doanh nghiệp (bảng `companies`) mà agent nghiên cứu được
+ * sau khi đã làm giàu dữ liệu contact. Tên trường khớp cột DB 1-1 để hàm
+ * apply ghi thẳng (sau khi validate), chỉ điền trường còn trống.
+ */
+export const COMPANY_FIELDS = [
+  "legal_name",
+  "country_code",
+  "industry",
+  "market_summary",
+  "employee_size_range",
+  "founded_year",
+  "products_summary",
+  "tax_or_registration_id",
+  "website",
+] as const;
+
+export type CompanyField = (typeof COMPANY_FIELDS)[number];
+
+/**
+ * Một phát hiện về công ty. KHÁC finding của contact: value luôn là CHUỖI
+ * (kể cả founded_year — "1999" — hàm apply mới parse + validate số), và
+ * `evidence` BẮT BUỘC là nguồn web agent tìm thấy (URL hoặc tên trang),
+ * theo FR-009 phân biệt nguồn ngoài với dữ liệu user nhập.
+ */
+export const companyFindingSchema = z.object({
+  value: z.string().min(1, "Giá trị gợi ý không được rỗng"),
+  confidence: z
+    .number()
+    .min(0, "Độ tin cậy phải từ 0 đến 1")
+    .max(1, "Độ tin cậy phải từ 0 đến 1"),
+  evidence: z.string().min(1, "Phải ghi rõ nguồn web của phát hiện"),
+  sourceUrl: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
+});
+
+export type CompanyFinding = z.infer<typeof companyFindingSchema>;
+
+export const companyFindingsSchema = z.object({
+  legal_name: companyFindingSchema.optional(),
+  country_code: companyFindingSchema.optional(),
+  industry: companyFindingSchema.optional(),
+  market_summary: companyFindingSchema.optional(),
+  employee_size_range: companyFindingSchema.optional(),
+  founded_year: companyFindingSchema.optional(),
+  products_summary: companyFindingSchema.optional(),
+  tax_or_registration_id: companyFindingSchema.optional(),
+  website: companyFindingSchema.optional(),
+});
+
+export type CompanyFindings = z.infer<typeof companyFindingsSchema>;
+
 export const enrichmentResultSchema = z.object({
   findings: z.array(enrichmentFindingSchema),
+  company: companyFindingsSchema.optional(),
   steps: z.array(enrichmentStepSchema),
   modelUsed: z.string(),
 });
@@ -97,6 +154,7 @@ export type EnrichmentResult = z.infer<typeof enrichmentResultSchema>;
 /** Schema cho output có cấu trúc mà LLM trả ở bước cuối của vòng lặp. */
 export const enrichmentOutputSchema = z.object({
   findings: z.array(enrichmentFindingSchema).max(10),
+  company: companyFindingsSchema.optional(),
 });
 
 export type EnrichmentOutput = z.infer<typeof enrichmentOutputSchema>;

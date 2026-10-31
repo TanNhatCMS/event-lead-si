@@ -13,6 +13,7 @@ import {
   type EnrichmentStep,
   type EnrichmentToolCall,
 } from "./types";
+import { loadEnrichmentMarkdown } from "./load-markdown";
 import { buildEnrichmentTools } from "./tools";
 import {
   appendSkillsToPrompt,
@@ -54,6 +55,9 @@ import { getPromptDefault } from "../prompts/defaults";
 
 const MAX_STEPS = 6;
 
+/** Skill hướng dẫn agent nghiên cứu hồ sơ công ty (FR-008) — file .md editable. */
+const COMPANY_RESEARCH_SKILL_PATH = "skills/company-research.md";
+
 export class EnrichmentNotConfiguredError extends Error {
   constructor(message: string) {
     super(message);
@@ -79,6 +83,9 @@ function buildUserPrompt(recognized: RecognizedCard): string {
     ...lines,
     "",
     "Hãy dùng các công cụ để chuẩn hoá và bổ sung thông tin, rồi trả kết luận cuối cùng là danh sách findings.",
+    "Nếu có tên công ty (companyName): sau khi xong phần liên hệ, nghiên cứu tiếp hồ sơ doanh nghiệp",
+    "theo skill company-research và trả thêm object `company` (các trường còn thiếu, mỗi trường kèm",
+    "confidence + evidence là nguồn web thật).",
   ].join("\n");
 }
 
@@ -222,9 +229,14 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
     ? await getPrompt('lead_enrichment', input.userId ?? '', input.supabase)
     : getPromptDefault('lead_enrichment')?.content ?? '';
 
+  // Skill nghiên cứu hồ sơ công ty (FR-008) — gắn ngay sau system prompt gốc
+  // để luôn có mặt bất kể prompt gốc lấy từ DB hay default.
+  const promptWithCompanySkill =
+    basePrompt + "\n\n" + loadEnrichmentMarkdown(COMPANY_RESEARCH_SKILL_PATH);
+
   // Năng lực agent do user cấu hình ở /admin/agent: plugins (tắt tool),
   // MCP servers (hợp nhất tool ngoài), hooks (audit), skills (markdown).
-  let systemPrompt = basePrompt;
+  let systemPrompt = promptWithCompanySkill;
   let tools: ToolSet = baseTools;
   if (input.userId && input.supabase) {
     const tooling = await loadAgentTooling(input.userId, input.supabase);
@@ -297,6 +309,7 @@ export async function runEnrichmentLoop(input: EnrichmentLoopInput): Promise<Enr
   const findings = generated.output?.findings ?? [];
   return enrichmentResultSchema.parse({
     findings,
+    company: generated.output?.company ?? undefined,
     steps: summarizeSteps(generated),
     modelUsed: usedModel,
   });
