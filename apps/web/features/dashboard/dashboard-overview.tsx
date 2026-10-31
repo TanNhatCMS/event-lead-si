@@ -17,6 +17,7 @@ import { cn } from '@kit/ui/utils';
 
 import { EventSelector } from './event-selector';
 import { FollowUpQueue } from './follow-up-queue';
+import { NotificationBell } from './notification-bell';
 import { RemindersWidget } from './reminders-widget';
 import { DataPolicyCard } from './data-policy-card';
 
@@ -143,8 +144,14 @@ export function DashboardOverview() {
       {/* Nhắc việc cần chăm sóc */}
       <RemindersWidget />
 
-      {/* Hàng đợi follow-up: cần soạn / chờ duyệt / đã gửi */}
-      <FollowUpQueue />
+      {/* Hàng đợi follow-up: cần soạn / chờ duyệt / đã gửi — kèm chuông thông
+          báo đặt cạnh nút "Tải lại" của card (popover mở từ góc phải trên). */}
+      <div className="relative">
+        <FollowUpQueue />
+        <div className="absolute right-14 top-4 z-10">
+          <NotificationBell />
+        </div>
+      </div>
 
       {/* Chính sách dữ liệu: retention liên hệ đã lưu trữ + dọn dẹp thủ công */}
       <DataPolicyCard />

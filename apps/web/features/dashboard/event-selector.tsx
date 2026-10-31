@@ -37,6 +37,8 @@ import {
 } from '@kit/ui/select';
 import { Spinner } from '@kit/ui/spinner';
 
+import { EventReportPdfButton } from './event-report-pdf';
+
 type EventItem = {
   id: string;
   name: string;
@@ -401,6 +403,24 @@ export function EventSelector() {
                       : '—'}
                   </span>
                 </span>
+              </div>
+            )}
+
+            {/* Nút xuất PDF (báo cáo sự kiện) — ngay dưới mục ROI */}
+            {stats && selected && (
+              <div className="flex justify-end">
+                <EventReportPdfButton
+                  eventId={selected.id}
+                  eventName={selected.name}
+                  stats={{
+                    contacts: stats.contacts,
+                    cardImports: stats.cardImports,
+                    followUpsSent: stats.followUpsSent,
+                    funnel: stats.funnel ?? null,
+                    costUsd: stats.costUsd,
+                    leadsPerCost: stats.leadsPerCost,
+                  }}
+                />
               </div>
             )}
           </>

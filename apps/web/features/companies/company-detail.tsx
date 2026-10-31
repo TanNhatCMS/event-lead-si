@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react';
 import {
   Building2,
+  Check,
+  Copy,
   ExternalLink,
   Info,
   Pencil,
+  QrCode,
   ShieldCheck,
   Users,
   X,
@@ -27,11 +30,21 @@ import { alertExtras } from '@kit/ui/alert-extras';
 import { Badge } from '@kit/ui/badge';
 import { Button, buttonVariants } from '@kit/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@kit/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@kit/ui/dialog';
 import { Input } from '@kit/ui/input';
 import { Label } from '@kit/ui/label';
 import { Spinner } from '@kit/ui/spinner';
 import { Textarea } from '@kit/ui/textarea';
 import { cn } from '@kit/ui/utils';
+
+import { qrDataUrl } from '~/lib/qr';
 
 type Company = {
   id: string;
@@ -119,6 +132,14 @@ export function CompanyDetail({ companyId }: { companyId: string }) {
     tax_or_registration_id: '',
   });
 
+  // QR chia sẻ: encode CHỈ link công khai /chia-se/<share_token>.
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrBusy, setQrBusy] = useState(false);
+  const [qrData, setQrData] = useState<string | null>(null);
+  const [qrUrl, setQrUrl] = useState('');
+  const [qrCopied, setQrCopied] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+
   // Load lúc mount (loading=true, error=null sẵn từ useState ban đầu);
   // pattern async IIFE giống companies-list để tránh cascading render trong effect.
   useEffect(() => {
@@ -196,6 +217,37 @@ export function CompanyDetail({ companyId }: { companyId: string }) {
     }
   }
 
+  /** Mở dialog QR: absolute URL từ origin hiện tại rồi vẽ QR (data-URL PNG). */
+  async function openQr() {
+    if (!company?.share_token) return;
+    setQrOpen(true);
+    setQrError(null);
+    setQrCopied(false);
+    const absolute =
+      window.location.origin + '/chia-se/' + company.share_token;
+    setQrUrl(absolute);
+    setQrBusy(true);
+    try {
+      const dataUrl = await qrDataUrl(absolute);
+      setQrData(dataUrl);
+    } catch {
+      setQrError('Không tạo được mã QR. Vui lòng thử lại.');
+    } finally {
+      setQrBusy(false);
+    }
+  }
+
+  async function copyQrUrl() {
+    if (!qrUrl) return;
+    try {
+      await navigator.clipboard.writeText(qrUrl);
+      setQrCopied(true);
+      setTimeout(() => setQrCopied(false), 2000);
+    } catch {
+      setQrError('Không sao chép được — vui lòng copy thủ công từ ô bên dưới.');
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -240,14 +292,19 @@ export function CompanyDetail({ companyId }: { companyId: string }) {
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {company.share_token && (
-              <a
-                href={`/chia-se/${company.share_token}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-              >
-                <ExternalLink className="mr-1.5 h-4 w-4" /> Trang chia sẻ
-              </a>
+              <>
+                <Button size="sm" variant="ghost" onClick={() => void openQr()}>
+                  <QrCode className="mr-1.5 h-4 w-4" /> QR chia sẻ
+                </Button>
+                <a
+                  href={`/chia-se/${company.share_token}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+                >
+                  <ExternalLink className="mr-1.5 h-4 w-4" /> Trang chia sẻ
+                </a>
+              </>
             )}
             {editing ? (
               <>
@@ -451,6 +508,67 @@ export function CompanyDetail({ companyId }: { companyId: string }) {
           </p>
         </CardContent>
       </Card>
+
+      {/* Dialog QR chia sẻ — chỉ encode link công khai của trang chia sẻ */}
+      <Dialog
+        open={qrOpen}
+        onOpenChange={(open) => {
+          setQrOpen(open);
+          if (!open) setQrData(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>QR chia sẻ công ty</DialogTitle>
+            <DialogDescription>
+              Quét mã để mở trang chia sẻ công khai của {company.display_name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-3">
+            {qrBusy ? (
+              <div className="flex h-56 items-center justify-center">
+                <Spinner />
+              </div>
+            ) : qrError ? (
+              <p className="text-sm text-destructive">{qrError}</p>
+            ) : (
+              qrData && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={qrData}
+                  alt="Mã QR dẫn tới trang chia sẻ công ty"
+                  className="h-56 w-56 rounded-lg border"
+                />
+              )
+            )}
+            <div className="flex w-full items-center gap-2">
+              <Input readOnly value={qrUrl} onFocus={(e) => e.target.select()} />
+              <Button variant="outline" onClick={() => void copyQrUrl()}>
+                {qrCopied ? (
+                  <Check className="h-4 w-4 text-emerald-600" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                {qrCopied ? 'Đã sao chép' : 'Copy'}
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            {qrData && (
+              <a
+                href={qrData}
+                download="qr-chia-se-cong-ty.png"
+                className={buttonVariants({ variant: 'outline' })}
+              >
+                Tải PNG
+              </a>
+            )}
+            <Button variant="outline" onClick={() => setQrOpen(false)}>
+              Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

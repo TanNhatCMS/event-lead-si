@@ -8,6 +8,7 @@ import {
   Copy,
   Download,
   FileUp,
+  GitMerge,
   Mail,
   Milestone,
   MoreVertical,
@@ -53,6 +54,9 @@ import { Spinner } from '@kit/ui/spinner';
 import { toast } from '@kit/ui/sonner';
 import { Textarea } from '@kit/ui/textarea';
 import { cn } from '@kit/ui/utils';
+
+import { MergeDialog, type MergeDialogSource } from './merge-dialog';
+import { qrDataUrl } from '~/lib/qr';
 
 type ContactRow = {
   id: string;
@@ -187,6 +191,29 @@ export function ContactsList() {
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [shared, setShared] = useState<{ name: string; url: string } | null>(null);
   const [sharedCopied, setSharedCopied] = useState(false);
+  // QR của link chia sẻ hiện hành — encode CHỈ URL công khai trả về từ API.
+  const [sharedQr, setSharedQr] = useState<string | null>(null);
+
+  // Vẽ QR cho URL chia sẻ hiện hành (async — không setState đồng bộ trong
+  // effect); việc reset QR làm ở event handler mở/đóng dialog.
+  useEffect(() => {
+    const url = shared?.url;
+    if (!url) return;
+    let alive = true;
+    qrDataUrl(url)
+      .then((dataUrl) => {
+        if (alive) setSharedQr(dataUrl);
+      })
+      .catch(() => {
+        if (alive) setSharedQr(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [shared]);
+
+  // Gộp liên hệ trùng (POST /api/contacts/merge) — liên hệ nguồn mở từ menu.
+  const [mergeSource, setMergeSource] = useState<MergeDialogSource | null>(null);
 
   // Làm giàu dữ liệu hàng loạt (POST /api/enrichment/batch).
   const [enriching, setEnriching] = useState(false);
@@ -356,6 +383,7 @@ export function ContactsList() {
       }
       setShared({ name: contact.full_name, url: json.shareUrl });
       setSharedCopied(false);
+      setSharedQr(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Tạo link chia sẻ thất bại.');
     } finally {
@@ -812,6 +840,12 @@ export function ContactsList() {
                         <Share2 className="mr-2 h-4 w-4" />
                         Tạo link chia sẻ
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => setMergeSource({ id: c.id, full_name: c.full_name })}
+                      >
+                        <GitMerge className="mr-2 h-4 w-4" />
+                        Gộp liên hệ trùng
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -820,8 +854,25 @@ export function ContactsList() {
           </ul>
         </>
       )}
+      {/* Dialog gộp liên hệ trùng (POST /api/contacts/merge) */}
+      <MergeDialog
+        contact={mergeSource}
+        onOpenChange={(open) => {
+          if (!open) setMergeSource(null);
+        }}
+        onMerged={() => void load()}
+      />
+
       {/* Dialog tạo link chia sẻ liên hệ */}
-      <Dialog open={shared !== null} onOpenChange={(open) => !open && setShared(null)}>
+      <Dialog
+        open={shared !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShared(null);
+            setSharedQr(null);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Chia sẻ liên hệ</DialogTitle>
@@ -841,6 +892,23 @@ export function ContactsList() {
               {sharedCopied ? 'Đã sao chép' : 'Copy'}
             </Button>
           </div>
+          {sharedQr && (
+            <div className="flex flex-col items-center gap-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={sharedQr}
+                alt="Mã QR dẫn tới trang chia sẻ liên hệ"
+                className="h-44 w-44 rounded-lg border"
+              />
+              <a
+                href={sharedQr}
+                download="qr-chia-se-lien-he.png"
+                className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+              >
+                Tải PNG
+              </a>
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShared(null)}>
               Đóng

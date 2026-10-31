@@ -12,6 +12,8 @@ const querySchema = z.object({
   // (comma-separated → in_).
   labels: z.string().trim().max(600).optional().default(''),
   stage: z.string().trim().max(400).optional().default(''),
+  // Lọc theo sự kiện (báo cáo PDF sự kiện / client lọc theo sự kiện).
+  event_id: z.string().uuid().optional().default(''),
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
 });
@@ -71,12 +73,16 @@ export async function GET(request: Request) {
   let query = supabase
     .from('contacts')
     .select(
-      'id, full_name, job_title, email, phone, labels, relationship_stage, archived_at, updated_at, created_at, companies(id, display_name)',
+      'id, full_name, job_title, email, phone, labels, relationship_stage, archived_at, updated_at, created_at, event_id, companies(id, display_name)',
       { count: 'exact' },
     )
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
     .range(params.offset, params.offset + params.limit - 1);
+
+  if (params.event_id) {
+    query = query.eq('event_id', params.event_id);
+  }
 
   if (params.archived === 'true') {
     query = query.not('archived_at', 'is', null);

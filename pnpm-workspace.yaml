@@ -79,6 +79,7 @@ allowBuilds:
   'esbuild': true
   'sharp': true
   'cbor-extract': true
+  'core-js': true
 minimumReleaseAgeExclude:
   - '@ai-sdk/react@4.0.142'
   - '@ai-sdk/gateway@4.0.111 || 4.0.112'

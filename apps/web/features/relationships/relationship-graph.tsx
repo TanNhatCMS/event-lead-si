@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Check, Copy, Network, Sparkles, X } from 'lucide-react';
+import { Building2, Check, Clock, Copy, Network, Route, Sparkles, X } from 'lucide-react';
 
 import { Badge } from '@kit/ui/badge';
 import { Button } from '@kit/ui/button';
@@ -29,6 +29,14 @@ type Edge = { from: string; to: string; label: string };
 type Intro = {
   connector: { id: string; full_name: string; job_title: string | null };
   evidence: string;
+};
+
+/** Một gợi ý tất định từ GET /api/relationships/insights (không LLM). */
+type Insight = {
+  type: 'aging' | 'unlinked' | 'bridge';
+  title: string;
+  detail: string;
+  link?: string;
 };
 
 type Point = { x: number; y: number };
@@ -96,6 +104,30 @@ export function RelationshipGraph() {
         }
       } finally {
         setLoading(false);
+      }
+    })();
+  }, []);
+
+  // Gợi ý từ đồ thị (tất định): liên hệ lâu chưa chạm, công ty trống,
+  // cầu nối giới thiệu 2 bước. Panel tùy chọn — lỗi thì chỉ ẩn gợi ý.
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [insightsLoading, setInsightsLoading] = useState(true);
+  const [insightsError, setInsightsError] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/relationships/insights');
+        const json = await res.json();
+        if (res.ok) {
+          setInsights(json.insights ?? []);
+        } else {
+          setInsightsError(true);
+        }
+      } catch {
+        setInsightsError(true);
+      } finally {
+        setInsightsLoading(false);
       }
     })();
   }, []);
@@ -685,6 +717,72 @@ export function RelationshipGraph() {
                 </Button>
               </div>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Gợi ý từ đồ thị — tất định (aging / unlinked / bridge), không LLM */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Gợi ý từ đồ thị</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {insightsLoading ? (
+            <div className="flex justify-center py-4">
+              <Spinner />
+            </div>
+          ) : insightsError ? (
+            <p className="text-sm text-muted-foreground">
+              Không tải được gợi ý — vui lòng thử lại sau.
+            </p>
+          ) : insights.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Đồ thị kết nối của bạn đang tốt — không có cảnh báo.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {insights.map((insight, i) => {
+                const Icon =
+                  insight.type === 'aging'
+                    ? Clock
+                    : insight.type === 'unlinked'
+                      ? Building2
+                      : Route;
+                return (
+                  <li
+                    key={insight.type + '-' + i}
+                    className="flex items-start justify-between gap-3 rounded-lg bg-muted/50 p-3"
+                  >
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <Icon
+                        className={cn(
+                          'mt-0.5 h-4 w-4 shrink-0',
+                          insight.type === 'aging'
+                            ? 'text-amber-600'
+                            : insight.type === 'unlinked'
+                              ? 'text-muted-foreground'
+                              : 'text-sky-600',
+                        )}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{insight.title}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {insight.detail}
+                        </p>
+                      </div>
+                    </div>
+                    {insight.link && (
+                      <Link
+                        href={insight.link}
+                        className="shrink-0 text-xs font-medium text-primary hover:underline"
+                      >
+                        Xem →
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </CardContent>
       </Card>

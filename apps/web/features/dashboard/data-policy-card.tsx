@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DatabaseBackup, Trash2 } from 'lucide-react';
+import { DatabaseBackup, Download, Trash2 } from 'lucide-react';
 
 import { Button } from '@kit/ui/button';
 import {
@@ -42,6 +42,9 @@ export function DataPolicyCard() {
   } | null>(null);
   const [cleanError, setCleanError] = useState<string | null>(null);
   const [deletedCount, setDeletedCount] = useState<number | null>(null);
+  // Tải bản sao dữ liệu (GET /api/backup → JSON download).
+  const [backingUp, setBackingUp] = useState(false);
+  const [backupError, setBackupError] = useState<string | null>(null);
   // Settings hiện có — gửi kèm khi PATCH để không mất labels/stages.
   const [currentSettings, setCurrentSettings] = useState<AgentSettings | null>(
     null,
@@ -168,6 +171,43 @@ export function DataPolicyCard() {
     }
   }
 
+  /**
+   * Tải toàn bộ dữ liệu user dạng JSON (GET /api/backup) — file
+   * eventlead-backup-YYYYMMDD.json, mỗi bảng tối đa 5000 dòng.
+   */
+  async function handleBackupDownload() {
+    setBackingUp(true);
+    setBackupError(null);
+    try {
+      const res = await fetch('/api/backup');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.message ?? 'Tải dữ liệu thất bại.');
+      }
+      const blob = new Blob([JSON.stringify(json, null, 2)], {
+        type: 'application/json',
+      });
+      const now = new Date();
+      const stamp =
+        String(now.getFullYear()) +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'eventlead-backup-' + stamp + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Đã tải bản sao dữ liệu.');
+    } catch (e) {
+      setBackupError(e instanceof Error ? e.message : 'Tải dữ liệu thất bại.');
+    } finally {
+      setBackingUp(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -215,15 +255,27 @@ export function DataPolicyCard() {
 
             <div className="space-y-2 border-t pt-3">
               {pending === null ? (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={cleaning}
-                  onClick={() => void handleDryRun()}
-                >
-                  <Trash2 className="mr-1.5 h-4 w-4" />
-                  {cleaning ? 'Đang kiểm tra...' : 'Dọn dẹp ngay'}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={backingUp}
+                    onClick={() => void handleBackupDownload()}
+                    title="Tải toàn bộ dữ liệu của bạn dưới dạng JSON"
+                  >
+                    <Download className="mr-1.5 h-4 w-4" />
+                    {backingUp ? 'Đang tải...' : 'Tải dữ liệu (JSON)'}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={cleaning}
+                    onClick={() => void handleDryRun()}
+                  >
+                    <Trash2 className="mr-1.5 h-4 w-4" />
+                    {cleaning ? 'Đang kiểm tra...' : 'Dọn dẹp ngay'}
+                  </Button>
+                </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5">
                   <p className="text-sm">
@@ -262,6 +314,9 @@ export function DataPolicyCard() {
               )}
               {cleanError && (
                 <p className="text-sm text-destructive">{cleanError}</p>
+              )}
+              {backupError && (
+                <p className="text-sm text-destructive">{backupError}</p>
               )}
               {deletedCount !== null && (
                 <p className="text-sm text-emerald-600 dark:text-emerald-400">
