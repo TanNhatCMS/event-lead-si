@@ -10,7 +10,7 @@
 # Node 24 (LTS, khớp .nvmrc `lts/*`): proxy.ts dùng global URLPattern, chỉ có
 # từ Node 23.8+ — Node 22 sẽ crash standalone server.
 # ---------------------------------------------------------------------------
-FROM node:24-bookworm-slim AS base
+FROM node:26-bookworm-slim AS base
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -70,7 +70,7 @@ CMD ["pnpm", "--filter", "web", "dev"]
 # ---------------------------------------------------------------------------
 # Runner: chỉ chứa standalone server (node_modules đã được trace tối thiểu)
 # ---------------------------------------------------------------------------
-FROM node:24-bookworm-slim AS runner
+FROM node:26-bookworm-slim AS runner
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
